@@ -1,6 +1,13 @@
 package com.wynncraft.core.interfaces;
 
+import com.wynncraft.enums.EquipmentType;
+
 public interface IEquipment {
+
+    /**
+     * @return the equipment type
+     */
+    EquipmentType type();
 
     /**
      * An integer array ordered by skill points
