@@ -101,28 +101,28 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
     }
 
     private void loadItemStats(int index, int[] req, int[] bonus) {
-        int weight = 0;
-        boolean reqPresent = false;
-        boolean negativePresent = false;
         long bit = 1L << index;
-        for (int skill = 0; skill < SKILLS; skill++) {
-            weight += bonus[skill];
-            reqPresent |= req[skill] > 0;
-            negativePresent |= bonus[skill] < 0;
-            markRequirement(skill, req[skill], bit);
-        }
-        weights[index] = weight;
-        hasRequirement[index] = reqPresent;
-        hasNegativeBonus[index] = negativePresent;
-        if (negativePresent) {
-            negativeMask |= bit;
-        }
+        weights[index] = bonus[0] + bonus[1] + bonus[2] + bonus[3] + bonus[4];
+        hasRequirement[index] = hasRequirement(req);
+        hasNegativeBonus[index] = hasNegativeBonus(bonus);
+        negativeMask |= hasNegativeBonus[index] ? bit : 0L;
+        markRequirements(req, bit);
     }
 
-    private void markRequirement(int skill, int requirement, long bit) {
-        if (requirement > 0) {
-            requiredBySkill[skill] |= bit;
-        }
+    private boolean hasRequirement(int[] req) {
+        return req[0] > 0 || req[1] > 0 || req[2] > 0 || req[3] > 0 || req[4] > 0;
+    }
+
+    private boolean hasNegativeBonus(int[] bonus) {
+        return bonus[0] < 0 || bonus[1] < 0 || bonus[2] < 0 || bonus[3] < 0 || bonus[4] < 0;
+    }
+
+    private void markRequirements(int[] req, long bit) {
+        requiredBySkill[0] |= req[0] > 0 ? bit : 0L;
+        requiredBySkill[1] |= req[1] > 0 ? bit : 0L;
+        requiredBySkill[2] |= req[2] > 0 ? bit : 0L;
+        requiredBySkill[3] |= req[3] > 0 ? bit : 0L;
+        requiredBySkill[4] |= req[4] > 0 ? bit : 0L;
     }
 
     private void prepareImpactMasks() {
@@ -142,9 +142,11 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
     }
 
     private void loadState(WynnPlayer player) {
-        for (int s = 0; s < SKILLS; s++) {
-            state[s] = player.allocated(SKILL_POINTS[s]);
-        }
+        state[0] = player.allocated(SKILL_POINTS[0]);
+        state[1] = player.allocated(SKILL_POINTS[1]);
+        state[2] = player.allocated(SKILL_POINTS[2]);
+        state[3] = player.allocated(SKILL_POINTS[3]);
+        state[4] = player.allocated(SKILL_POINTS[4]);
     }
 
     private void ensureCapacity(int size) {
@@ -241,18 +243,9 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
             return;
         }
 
-        if (count > bestCount || (count == bestCount && weight > bestWeight)) {
-            bestMask = activeMask;
-            bestCount = count;
-            bestWeight = weight;
-        }
+        recordBest(activeMask, count, weight);
 
-        int maximumReachableCount = count + Long.bitCount(remainingMask);
-        if (maximumReachableCount < bestCount) {
-            removeBonuses(addedPositiveMask);
-            return;
-        }
-        if (maximumReachableCount == bestCount && weight + remainingWeight <= bestWeight) {
+        if (isSearchExhausted(count, remainingMask, weight, remainingWeight)) {
             removeBonuses(addedPositiveMask);
             return;
         }
@@ -281,6 +274,24 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         }
 
         removeBonuses(addedPositiveMask);
+    }
+
+    private void recordBest(long activeMask, int count, int weight) {
+        if (count > bestCount || (count == bestCount && weight > bestWeight)) {
+            bestMask = activeMask;
+            bestCount = count;
+            bestWeight = weight;
+        }
+    }
+
+    private boolean isSearchExhausted(int count, long remainingMask, int weight, int remainingWeight) {
+        if (bestCount == itemCount) {
+            return true;
+        }
+
+        int maximumReachableCount = count + Long.bitCount(remainingMask);
+        return maximumReachableCount < bestCount
+                || (maximumReachableCount == bestCount && weight + remainingWeight <= bestWeight);
     }
 
     private long closePositiveItems(long remainingMask) {
@@ -389,14 +400,14 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
 
     private Result buildResult(WynnPlayer player) {
         if (bestCount == itemCount) {
-            List<IEquipment> valid = allItemsList();
+            List<IEquipment> valid = player.equipment();
             applyResult(player, valid);
             return new Result(valid, Collections.emptyList());
         }
 
         if (bestCount == 0) {
             resetPlayer(player);
-            return new Result(Collections.emptyList(), allItemsList());
+            return new Result(Collections.emptyList(), player.equipment());
         }
 
         return buildPartialResult(player);
@@ -416,15 +427,21 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         return new Result(valid, invalid);
     }
 
-    private List<IEquipment> allItemsList() {
-        return new ArrayList<>(Arrays.asList(Arrays.copyOf(items, itemCount)));
-    }
-
     private void applyResult(WynnPlayer player, List<IEquipment> valid) {
         resetPlayer(player);
+        Arrays.fill(playerBonuses, 0);
         for (IEquipment item : valid) {
-            player.modify(item.bonuses(), true);
+            addToPlayerBonuses(item.bonuses());
         }
+        player.modify(playerBonuses, true);
+    }
+
+    private void addToPlayerBonuses(int[] bonus) {
+        playerBonuses[0] += bonus[0];
+        playerBonuses[1] += bonus[1];
+        playerBonuses[2] += bonus[2];
+        playerBonuses[3] += bonus[3];
+        playerBonuses[4] += bonus[4];
     }
 
     private void resetPlayer(WynnPlayer player) {
