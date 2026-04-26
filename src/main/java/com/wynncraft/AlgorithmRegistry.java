@@ -3,6 +3,8 @@ package com.wynncraft;
 
 import com.wynncraft.algorithms.CapyTopoAlgorithm;
 import com.wynncraft.algorithms.WynnFrumaAlgorithm;
+import com.wynncraft.algorithms.melon.EDGNAlgorithm;
+import com.wynncraft.algorithms.melon.ExactSubsetOptimizerAlgorithm;
 import com.wynncraft.core.WynnPlayer;
 import com.wynncraft.core.interfaces.IAlgorithm;
 import com.wynncraft.core.interfaces.IPlayerBuilder;
@@ -21,6 +23,8 @@ public class AlgorithmRegistry {
         // New additions always goes on the bottom for reference
         register(new WynnFrumaAlgorithm(), WynnPlayer.Builder::new);
         register(new CapyTopoAlgorithm(), WynnPlayer.Builder::new);
+        register(new EDGNAlgorithm(), WynnPlayer.Builder::new);
+        register(new ExactSubsetOptimizerAlgorithm(), WynnPlayer.Builder::new);
     }
 
     /**
