@@ -22,13 +22,19 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
     private static final int AGI = 4;
     private static final int SKILLS = 5;
 
-    private final int[] state = new int[SKILLS];
+    private int stSTR;
+    private int stDEX;
+    private int stINT;
+    private int stDEF;
+    private int stAGI;
+
     private final long[] requiredBySkill = new long[SKILLS];
 
     private IEquipment[] item = new IEquipment[0];
-    private int[][] req = new int[0][];
-    private int[][] bonus = new int[0][];
+    private int[] reqFlat = new int[0];
+    private int[] bonusFlat = new int[0];
     private int[] weight = new int[0];
+    private long[] negImpact = new long[0];
 
     private int[] positive = new int[0];
     private int[] negative = new int[0];
@@ -53,7 +59,7 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
         bestCount = 0;
         bestWeight = 0;
 
-        dfs(posMask(), negMask(), 0L, 0, 0);
+        dfs(posMask(), negMask(), 0L, 0, 0, 0L);
         return emit(player);
     }
 
@@ -67,6 +73,7 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
         Arrays.fill(requiredBySkill, 0L);
         loadState(player);
         split(equipment);
+        computeNegImpact();
         sortNegative();
     }
 
@@ -75,20 +82,21 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
 
         int cap = Math.max(32, Integer.highestOneBit(size - 1) << 1);
         item = new IEquipment[cap];
-        req = new int[cap][];
-        bonus = new int[cap][];
+        reqFlat = new int[cap * SKILLS];
+        bonusFlat = new int[cap * SKILLS];
         weight = new int[cap];
+        negImpact = new long[cap];
         positive = new int[cap];
         negative = new int[cap];
         negativeRank = new int[cap];
     }
 
     private void loadState(WynnPlayer player) {
-        state[STR] = player.allocated(SP[STR]);
-        state[DEX] = player.allocated(SP[DEX]);
-        state[INT] = player.allocated(SP[INT]);
-        state[DEF] = player.allocated(SP[DEF]);
-        state[AGI] = player.allocated(SP[AGI]);
+        stSTR = player.allocated(SP[STR]);
+        stDEX = player.allocated(SP[DEX]);
+        stINT = player.allocated(SP[INT]);
+        stDEF = player.allocated(SP[DEF]);
+        stAGI = player.allocated(SP[AGI]);
     }
 
     private void split(List<IEquipment> equipment) {
@@ -100,13 +108,29 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
         }
     }
 
+    private void computeNegImpact() {
+        for (int qi = 0; qi < q; qi++) {
+            int id = negative[qi];
+            negImpact[id] = impactedBy(id);
+        }
+    }
+
     private void loadItem(int i, IEquipment it) {
         int[] r = it.requirements();
         int[] b = it.bonuses();
+        int base = i * SKILLS;
 
         item[i] = it;
-        req[i] = r;
-        bonus[i] = b;
+        reqFlat[base] = r[STR];
+        reqFlat[base + 1] = r[DEX];
+        reqFlat[base + 2] = r[INT];
+        reqFlat[base + 3] = r[DEF];
+        reqFlat[base + 4] = r[AGI];
+        bonusFlat[base] = b[STR];
+        bonusFlat[base + 1] = b[DEX];
+        bonusFlat[base + 2] = b[INT];
+        bonusFlat[base + 3] = b[DEF];
+        bonusFlat[base + 4] = b[AGI];
         weight[i] = b[STR] + b[DEX] + b[INT] + b[DEF] + b[AGI];
 
         requiredBySkill[STR] |= r[STR] > 0 ? bit(i) : 0L;
@@ -122,19 +146,22 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
             negative[q++] = i;
             return;
         }
-
         positive[p++] = i;
     }
 
     private boolean hasNegativeBonus(int i) {
-        int[] b = bonus[i];
-        return b[STR] < 0 || b[DEX] < 0 || b[INT] < 0 || b[DEF] < 0 || b[AGI] < 0;
+        int base = i * SKILLS;
+        return bonusFlat[base] < 0 || bonusFlat[base + 1] < 0
+            || bonusFlat[base + 2] < 0 || bonusFlat[base + 3] < 0
+            || bonusFlat[base + 4] < 0;
     }
 
     private int rankNegative(int i) {
-        int[] b = bonus[i];
-        int damage = min0(b[STR]) + min0(b[DEX]) + min0(b[INT]) + min0(b[DEF]) + min0(b[AGI]);
-        int gain = max0(b[STR]) + max0(b[DEX]) + max0(b[INT]) + max0(b[DEF]) + max0(b[AGI]);
+        int base = i * SKILLS;
+        int bS = bonusFlat[base], bD = bonusFlat[base + 1], bI = bonusFlat[base + 2],
+            bDf = bonusFlat[base + 3], bA = bonusFlat[base + 4];
+        int damage = min0(bS) + min0(bD) + min0(bI) + min0(bDf) + min0(bA);
+        int gain = max0(bS) + max0(bD) + max0(bI) + max0(bDf) + max0(bA);
         return (gain << 12) + (weight[i] << 5) + damage;
     }
 
@@ -167,17 +194,30 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
         Arrays.fill(seen, 0, words, 0L);
     }
 
-    private void dfs(long posTodo, long negTodo, long active, int count, int totalWeight) {
+    private void dfs(long posTodo, long negTodo, long active, int count, int totalWeight, long cascadeCheck) {
         long addedPos = closePositive(posTodo);
         long nextPosTodo = posTodo ^ addedPos;
-        long nextActive = active | originalPositiveMask(addedPos);
+
+        long nextActive = active;
+        int addedWeight = 0;
+        long m = addedPos;
+        while (m != 0L) {
+            long b = m & -m;
+            int slot = Long.numberOfTrailingZeros(b);
+            m ^= b;
+            int id = positive[slot];
+            nextActive |= bit(id);
+            addedWeight += weight[id];
+        }
         int nextCount = count + Long.bitCount(addedPos);
-        int nextWeight = totalWeight + positiveWeight(addedPos);
+        int nextWeight = totalWeight + addedWeight;
 
-        record(nextActive, nextCount, nextWeight);
+        if (validActive(cascadeCheck)) {
+            record(nextActive, nextCount, nextWeight);
 
-        if (upperBound(nextCount, nextPosTodo, negTodo) >= bestCount) {
-            searchNegative(nextPosTodo, negTodo, nextActive, nextCount, nextWeight);
+            if (upperBound(nextCount, nextPosTodo, negTodo) >= bestCount && markSeen(negTodo)) {
+                searchNegative(nextPosTodo, negTodo, nextActive, nextCount, nextWeight);
+            }
         }
 
         undoPositive(addedPos);
@@ -191,7 +231,7 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
             changed = equipablePositive(todo);
             todo ^= changed;
             added |= changed;
-            applyPositive(changed, 1);
+            addPositive(changed);
         } while (changed != 0L);
 
         return added;
@@ -221,11 +261,9 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
             int id = negative[slot];
             candidates ^= b;
 
-            add(id);
-            if (cascadeOk(id, active, posTodo)) {
-                dfs(posTodo, negTodo ^ b, active | bit(id), count + 1, totalWeight + weight[id]);
-            }
-            sub(id);
+            addApply(id);
+            dfs(posTodo, negTodo ^ b, active | bit(id), count + 1, totalWeight + weight[id], active & negImpact[id]);
+            subApply(id);
         }
     }
 
@@ -244,56 +282,44 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
         return out;
     }
 
-    private boolean cascadeOk(int added, long active, long posTodo) {
-        long newPos = closePositive(posTodo);
-        boolean ok = validActive(active & impactedBy(added));
-        undoPositive(newPos);
-        return ok;
-    }
-
     private long impactedBy(int added) {
-        int[] b = bonus[added];
+        int base = added * SKILLS;
         long mask = 0L;
-
-        mask |= b[STR] < 0 ? requiredBySkill[STR] : 0L;
-        mask |= b[DEX] < 0 ? requiredBySkill[DEX] : 0L;
-        mask |= b[INT] < 0 ? requiredBySkill[INT] : 0L;
-        mask |= b[DEF] < 0 ? requiredBySkill[DEF] : 0L;
-        mask |= b[AGI] < 0 ? requiredBySkill[AGI] : 0L;
-
+        mask |= bonusFlat[base] < 0 ? requiredBySkill[STR] : 0L;
+        mask |= bonusFlat[base + 1] < 0 ? requiredBySkill[DEX] : 0L;
+        mask |= bonusFlat[base + 2] < 0 ? requiredBySkill[INT] : 0L;
+        mask |= bonusFlat[base + 3] < 0 ? requiredBySkill[DEF] : 0L;
+        mask |= bonusFlat[base + 4] < 0 ? requiredBySkill[AGI] : 0L;
         return mask;
     }
 
     private boolean validActive(long mask) {
         long m = mask;
-
         while (m != 0L) {
             long b = m & -m;
             int id = Long.numberOfTrailingZeros(b);
             m ^= b;
             if (!validWithoutSelf(id)) return false;
         }
-
         return true;
     }
 
     private boolean canEquip(int id) {
-        int[] r = req[id];
-        return ok(state[STR], r[STR])
-                && ok(state[DEX], r[DEX])
-                && ok(state[INT], r[INT])
-                && ok(state[DEF], r[DEF])
-                && ok(state[AGI], r[AGI]);
+        int base = id * SKILLS;
+        return ok(stSTR, reqFlat[base])
+            && ok(stDEX, reqFlat[base + 1])
+            && ok(stINT, reqFlat[base + 2])
+            && ok(stDEF, reqFlat[base + 3])
+            && ok(stAGI, reqFlat[base + 4]);
     }
 
     private boolean validWithoutSelf(int id) {
-        int[] r = req[id];
-        int[] b = bonus[id];
-        return valid(state[STR], r[STR], b[STR])
-                && valid(state[DEX], r[DEX], b[DEX])
-                && valid(state[INT], r[INT], b[INT])
-                && valid(state[DEF], r[DEF], b[DEF])
-                && valid(state[AGI], r[AGI], b[AGI]);
+        int base = id * SKILLS;
+        return valid(stSTR, reqFlat[base], bonusFlat[base])
+            && valid(stDEX, reqFlat[base + 1], bonusFlat[base + 1])
+            && valid(stINT, reqFlat[base + 2], bonusFlat[base + 2])
+            && valid(stDEF, reqFlat[base + 3], bonusFlat[base + 3])
+            && valid(stAGI, reqFlat[base + 4], bonusFlat[base + 4]);
     }
 
     private boolean ok(int have, int need) {
@@ -328,64 +354,40 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
         bestWeight = totalWeight;
     }
 
-    private long originalPositiveMask(long posSlots) {
-        long out = 0L;
+    private void addPositive(long posSlots) {
         long m = posSlots;
-
         while (m != 0L) {
             long b = m & -m;
-            int slot = Long.numberOfTrailingZeros(b);
             m ^= b;
-            out |= bit(positive[slot]);
-        }
-
-        return out;
-    }
-
-    private int positiveWeight(long posSlots) {
-        int sum = 0;
-        long m = posSlots;
-
-        while (m != 0L) {
-            long b = m & -m;
-            int slot = Long.numberOfTrailingZeros(b);
-            m ^= b;
-            sum += weight[positive[slot]];
-        }
-
-        return sum;
-    }
-
-    private void applyPositive(long posSlots, int sign) {
-        long m = posSlots;
-
-        while (m != 0L) {
-            long b = m & -m;
-            int slot = Long.numberOfTrailingZeros(b);
-            m ^= b;
-            apply(positive[slot], sign);
+            addApply(positive[Long.numberOfTrailingZeros(b)]);
         }
     }
 
     private void undoPositive(long posSlots) {
-        applyPositive(posSlots, -1);
+        long m = posSlots;
+        while (m != 0L) {
+            long b = m & -m;
+            m ^= b;
+            subApply(positive[Long.numberOfTrailingZeros(b)]);
+        }
     }
 
-    private void add(int id) {
-        apply(id, 1);
+    private void addApply(int id) {
+        int base = id * SKILLS;
+        stSTR += bonusFlat[base];
+        stDEX += bonusFlat[base + 1];
+        stINT += bonusFlat[base + 2];
+        stDEF += bonusFlat[base + 3];
+        stAGI += bonusFlat[base + 4];
     }
 
-    private void sub(int id) {
-        apply(id, -1);
-    }
-
-    private void apply(int id, int sign) {
-        int[] b = bonus[id];
-        state[STR] += sign * b[STR];
-        state[DEX] += sign * b[DEX];
-        state[INT] += sign * b[INT];
-        state[DEF] += sign * b[DEF];
-        state[AGI] += sign * b[AGI];
+    private void subApply(int id) {
+        int base = id * SKILLS;
+        stSTR -= bonusFlat[base];
+        stDEX -= bonusFlat[base + 1];
+        stINT -= bonusFlat[base + 2];
+        stDEF -= bonusFlat[base + 3];
+        stAGI -= bonusFlat[base + 4];
     }
 
     private Result emit(WynnPlayer player) {
