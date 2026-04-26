@@ -176,7 +176,7 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
 
         record(nextActive, nextCount, nextWeight);
 
-        if (upperBound(nextCount, nextPosTodo, negTodo) >= bestCount && markSeen(negTodo)) {
+        if (upperBound(nextCount, nextPosTodo, negTodo) >= bestCount) {
             searchNegative(nextPosTodo, negTodo, nextActive, nextCount, nextWeight);
         }
 
