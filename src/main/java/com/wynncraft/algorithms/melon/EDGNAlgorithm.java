@@ -222,7 +222,7 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
             candidates ^= b;
 
             add(id);
-            if (cascadeOk(id, active)) {
+            if (cascadeOk(id, active, posTodo)) {
                 dfs(posTodo, negTodo ^ b, active | bit(id), count + 1, totalWeight + weight[id]);
             }
             sub(id);
@@ -244,8 +244,11 @@ public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
         return out;
     }
 
-    private boolean cascadeOk(int added, long active) {
-        return validActive(active & impactedBy(added));
+    private boolean cascadeOk(int added, long active, long posTodo) {
+        long newPos = closePositive(posTodo);
+        boolean ok = validActive(active & impactedBy(added));
+        undoPositive(newPos);
+        return ok;
     }
 
     private long impactedBy(int added) {
