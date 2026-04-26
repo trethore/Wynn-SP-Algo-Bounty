@@ -8,6 +8,7 @@ import com.wynncraft.enums.SkillPoint;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -19,8 +20,8 @@ import java.util.List;
  * permutations: once a mask is reached, its skill state is determined by the
  * mask, so all duplicate orders are skipped.</p>
  */
-@Information(name = "Exact Skill Optimizer", version = 1, authors = "Melon")
-public final class ExactSubsetOptimizerAlgorithm implements IAlgorithm<WynnPlayer> {
+@Information(name = "Hungry Goblin", version = 1, authors = "Melon")
+public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
 
     private static final SkillPoint[] SKILL_POINTS = SkillPoint.values();
     private static final int SKILLS = SKILL_POINTS.length;
@@ -36,6 +37,7 @@ public final class ExactSubsetOptimizerAlgorithm implements IAlgorithm<WynnPlaye
     private long[] impactMasks = new long[0];
 
     private final int[] state = new int[SKILLS];
+    private final int[] playerBonuses = new int[SKILLS];
     private final long[] requiredBySkill = new long[SKILLS];
     private final long[] visited = new long[VISITED_WORDS];
 
@@ -64,7 +66,11 @@ public final class ExactSubsetOptimizerAlgorithm implements IAlgorithm<WynnPlaye
         bestCount = Long.bitCount(activeMask);
         bestWeight = maskWeight(activeMask);
 
-        search(activeMask, remainingMask, bestCount, bestWeight);
+        if (tryEquipEverything(remainingMask, allMask)) {
+            return buildResult(player);
+        }
+
+        search(activeMask, remainingMask, bestCount, bestWeight, maskWeight(remainingMask));
         return buildResult(player);
     }
 
@@ -164,9 +170,48 @@ public final class ExactSubsetOptimizerAlgorithm implements IAlgorithm<WynnPlaye
             }
 
             mask |= 1L << i;
-            applyBonus(i, 1);
+            addBonus(i);
         }
         return mask;
+    }
+
+    private boolean tryEquipEverything(long remainingMask, long allMask) {
+        if (!allCanEquipNow(remainingMask)) {
+            return false;
+        }
+
+        addBonuses(remainingMask);
+        if (activeItemsRemainValid(allMask & impactedBy(remainingMask))) {
+            bestMask = allMask;
+            bestCount = itemCount;
+            bestWeight += maskWeight(remainingMask);
+            return true;
+        }
+        removeBonuses(remainingMask);
+        return false;
+    }
+
+    private boolean allCanEquipNow(long mask) {
+        long remaining = mask;
+        while (remaining != 0L) {
+            long bit = remaining & -remaining;
+            remaining ^= bit;
+            if (!canEquipNow(Long.numberOfTrailingZeros(bit))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private long impactedBy(long mask) {
+        long impacted = 0L;
+        long remaining = mask & negativeMask;
+        while (remaining != 0L) {
+            long bit = remaining & -remaining;
+            remaining ^= bit;
+            impacted |= impactMasks[Long.numberOfTrailingZeros(bit)];
+        }
+        return impacted;
     }
 
     private int maskWeight(long mask) {
@@ -180,13 +225,15 @@ public final class ExactSubsetOptimizerAlgorithm implements IAlgorithm<WynnPlaye
         return weight;
     }
 
-    private void search(long activeMask, long remainingMask, int count, int weight) {
+    private void search(long activeMask, long remainingMask, int count, int weight, int remainingWeight) {
         long addedPositiveMask = (remainingMask & negativeMask) == 0L ? closePositiveItems(remainingMask) : 0L;
         if (addedPositiveMask != 0L) {
+            int addedWeight = maskWeight(addedPositiveMask);
             activeMask |= addedPositiveMask;
             remainingMask &= ~addedPositiveMask;
             count += Long.bitCount(addedPositiveMask);
-            weight += maskWeight(addedPositiveMask);
+            weight += addedWeight;
+            remainingWeight -= addedWeight;
         }
 
         if (alreadyVisited(activeMask)) {
@@ -205,7 +252,7 @@ public final class ExactSubsetOptimizerAlgorithm implements IAlgorithm<WynnPlaye
             removeBonuses(addedPositiveMask);
             return;
         }
-        if (maximumReachableCount == bestCount && weight + maskWeight(remainingMask) <= bestWeight) {
+        if (maximumReachableCount == bestCount && weight + remainingWeight <= bestWeight) {
             removeBonuses(addedPositiveMask);
             return;
         }
@@ -220,11 +267,17 @@ public final class ExactSubsetOptimizerAlgorithm implements IAlgorithm<WynnPlaye
                 continue;
             }
 
-            applyBonus(item, 1);
+            addBonus(item);
             if (!hasNegativeBonus[item] || activeItemsRemainValid(activeMask & impactMasks[item])) {
-                search(activeMask | bit, remainingMask & ~bit, count + 1, weight + weights[item]);
+                search(
+                        activeMask | bit,
+                        remainingMask & ~bit,
+                        count + 1,
+                        weight + weights[item],
+                        remainingWeight - weights[item]
+                );
             }
-            applyBonus(item, -1);
+            subtractBonus(item);
         }
 
         removeBonuses(addedPositiveMask);
@@ -242,7 +295,7 @@ public final class ExactSubsetOptimizerAlgorithm implements IAlgorithm<WynnPlaye
                 int item = Long.numberOfTrailingZeros(bit);
                 if (!hasNegativeBonus[item] && canEquipNow(item)) {
                     changedMask |= bit;
-                    applyBonus(item, 1);
+                    addBonus(item);
                 }
             }
             addedMask |= changedMask;
@@ -298,28 +351,60 @@ public final class ExactSubsetOptimizerAlgorithm implements IAlgorithm<WynnPlaye
                 && (req[4] <= 0 || state[4] >= req[4] + bonus[4]);
     }
 
+    private void addBonuses(long mask) {
+        long remaining = mask;
+        while (remaining != 0L) {
+            long bit = remaining & -remaining;
+            remaining ^= bit;
+            addBonus(Long.numberOfTrailingZeros(bit));
+        }
+    }
+
     private void removeBonuses(long mask) {
         long remaining = mask;
         while (remaining != 0L) {
             long bit = remaining & -remaining;
             remaining ^= bit;
-            applyBonus(Long.numberOfTrailingZeros(bit), -1);
+            subtractBonus(Long.numberOfTrailingZeros(bit));
         }
     }
 
-    private void applyBonus(int item, int sign) {
+    private void addBonus(int item) {
         int[] bonus = bonuses[item];
-        state[0] += sign * bonus[0];
-        state[1] += sign * bonus[1];
-        state[2] += sign * bonus[2];
-        state[3] += sign * bonus[3];
-        state[4] += sign * bonus[4];
+        state[0] += bonus[0];
+        state[1] += bonus[1];
+        state[2] += bonus[2];
+        state[3] += bonus[3];
+        state[4] += bonus[4];
+    }
+
+    private void subtractBonus(int item) {
+        int[] bonus = bonuses[item];
+        state[0] -= bonus[0];
+        state[1] -= bonus[1];
+        state[2] -= bonus[2];
+        state[3] -= bonus[3];
+        state[4] -= bonus[4];
     }
 
     private Result buildResult(WynnPlayer player) {
+        if (bestCount == itemCount) {
+            List<IEquipment> valid = allItemsList();
+            applyResult(player, valid);
+            return new Result(valid, Collections.emptyList());
+        }
+
+        if (bestCount == 0) {
+            resetPlayer(player);
+            return new Result(Collections.emptyList(), allItemsList());
+        }
+
+        return buildPartialResult(player);
+    }
+
+    private Result buildPartialResult(WynnPlayer player) {
         List<IEquipment> valid = new ArrayList<>(bestCount);
         List<IEquipment> invalid = new ArrayList<>(itemCount - bestCount);
-
         for (int i = 0; i < itemCount; i++) {
             if ((bestMask & (1L << i)) != 0L) {
                 valid.add(items[i]);
@@ -327,12 +412,26 @@ public final class ExactSubsetOptimizerAlgorithm implements IAlgorithm<WynnPlaye
                 invalid.add(items[i]);
             }
         }
+        applyResult(player, valid);
+        return new Result(valid, invalid);
+    }
 
-        player.reset();
+    private List<IEquipment> allItemsList() {
+        return new ArrayList<>(Arrays.asList(Arrays.copyOf(items, itemCount)));
+    }
+
+    private void applyResult(WynnPlayer player, List<IEquipment> valid) {
+        resetPlayer(player);
         for (IEquipment item : valid) {
             player.modify(item.bonuses(), true);
         }
+    }
 
-        return new Result(valid, invalid);
+    private void resetPlayer(WynnPlayer player) {
+        for (int skill = 0; skill < SKILLS; skill++) {
+            SkillPoint skillPoint = SKILL_POINTS[skill];
+            playerBonuses[skill] = player.total(skillPoint) - player.allocated(skillPoint);
+        }
+        player.modify(playerBonuses, false);
     }
 }
