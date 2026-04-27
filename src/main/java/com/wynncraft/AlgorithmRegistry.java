@@ -31,6 +31,7 @@ public class AlgorithmRegistry {
 
         register(new DFSAlgorithm(), WynnPlayer.Builder::new);
         register(new StarvingGoblinAlgorithm(),StarvingPlayer.Builder::new);
+        register(new VoraciousGoblinAlgorithm(), VoraciousPlayer.Builder::new);
     }
 
     /**
