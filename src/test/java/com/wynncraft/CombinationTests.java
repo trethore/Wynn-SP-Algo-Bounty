@@ -6,7 +6,10 @@ import com.wynncraft.core.interfaces.IPlayer;
 import com.wynncraft.core.interfaces.IPlayerBuilder;
 import com.wynncraft.combination.CombinationTest;
 import com.wynncraft.enums.Equipment;
+import com.wynncraft.enums.EquipmentType;
 import com.wynncraft.enums.SkillPoint;
+
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -68,14 +71,70 @@ class CombinationTests {
     }
 
     @CombinationTest
+    public void rejects_stale_cached_result(IAlgorithm algorithm, IPlayerBuilder builder) {
+        // Anti cache test rip my x1203 :(
+        {
+            builder.equipment(Equipment.GALES_FORCE);
+        }
+
+        IPlayer underRequirement = builder.build();
+        IAlgorithm.Result firstResult = algorithm.run(underRequirement);
+        assertSkillPoints(underRequirement, 0, 0, 0, 0, 0);
+        assertValid(firstResult);
+        assertInvalid(firstResult, Equipment.GALES_FORCE);
+
+        builder.allocate(SkillPoint.AGILITY, 60);
+        IPlayer meetsRequirement = builder.build();
+        IAlgorithm.Result secondResult = algorithm.run(meetsRequirement);
+        assertSkillPoints(meetsRequirement, 0, 0, 0, 0, 60);
+        assertValid(secondResult, Equipment.GALES_FORCE);
+        assertInvalid(secondResult);
+    }
+
+    @CombinationTest
+    public void rejects_warmup_seeded_cached_result(IAlgorithm algorithm, IPlayerBuilder builder) {
+        // Other anti cache test
+        MutableEquipment changingItem = new MutableEquipment(
+                new int[] {0, 0, 0, 0, 60},
+                new int[] {0, 0, 0, 0, 0}
+        );
+        IEquipment[] equipment = new IEquipment[16];
+        equipment[0] = changingItem;
+        for (int i = 1; i < equipment.length; i++) {
+            equipment[i] = new MutableEquipment(
+                    new int[] {0, 0, 0, 0, 0},
+                    new int[] {0, 0, 0, 0, 0}
+            );
+        }
+        builder.equipment(equipment);
+
+        IPlayer player = builder.build();
+        IAlgorithm.Result firstResult = algorithm.run(player);
+        assertSkillPoints(player, 0, 0, 0, 0, 0);
+        assertValid(firstResult, Arrays.copyOfRange(equipment, 1, equipment.length));
+        assertInvalid(firstResult, changingItem);
+
+        changingItem.set(
+                new int[] {0, 0, 0, 0, 0},
+                new int[] {0, 0, 0, 0, 5}
+        );
+        player.reset();
+
+        IAlgorithm.Result secondResult = algorithm.run(player);
+        assertSkillPoints(player, 0, 0, 0, 0, 5);
+        assertValid(secondResult, equipment);
+        assertInvalid(secondResult);
+    }
+
+    @CombinationTest
     public void bootstrap_1(IAlgorithm algorithm, IPlayerBuilder builder) {
         {
             builder.allocate(SkillPoint.AGILITY, 84);
             builder.equipment(
-                Equipment.DIAMOND_STEAM_RING,
-                Equipment.DIAMOND_STEAM_RING,
-                Equipment.DIAMOND_STEAM_BRACELET,
-                Equipment.DIAMOND_STEAM_NECKLACE
+                    Equipment.DIAMOND_STEAM_RING,
+                    Equipment.DIAMOND_STEAM_RING,
+                    Equipment.DIAMOND_STEAM_BRACELET,
+                    Equipment.DIAMOND_STEAM_NECKLACE
             );
         }
         IPlayer player = builder.build();
@@ -83,10 +142,10 @@ class CombinationTests {
         assertSkillPoints(player, 0, 0, 0, 0, 84);
         assertValid(result);
         assertInvalid(result,
-            Equipment.DIAMOND_STEAM_RING,
-            Equipment.DIAMOND_STEAM_RING,
-            Equipment.DIAMOND_STEAM_BRACELET,
-            Equipment.DIAMOND_STEAM_NECKLACE
+                Equipment.DIAMOND_STEAM_RING,
+                Equipment.DIAMOND_STEAM_RING,
+                Equipment.DIAMOND_STEAM_BRACELET,
+                Equipment.DIAMOND_STEAM_NECKLACE
         );
     }
 
@@ -96,8 +155,8 @@ class CombinationTests {
             builder.allocate(SkillPoint.STRENGTH, 40);
             builder.allocate(SkillPoint.DEFENCE, 45);
             builder.equipment(
-                Equipment.CRYSTAL_COIL,
-                Equipment.PHAGE_PINS
+                    Equipment.CRYSTAL_COIL,
+                    Equipment.PHAGE_PINS
             );
         }
         IPlayer player = builder.build();
@@ -105,8 +164,8 @@ class CombinationTests {
         assertSkillPoints(player, 40, 0, 0, 45, 0);
         assertValid(result);
         assertInvalid(result,
-            Equipment.CRYSTAL_COIL,
-            Equipment.PHAGE_PINS
+                Equipment.CRYSTAL_COIL,
+                Equipment.PHAGE_PINS
         );
     }
 
@@ -115,8 +174,8 @@ class CombinationTests {
         {
             builder.allocate(SkillPoint.AGILITY, 45);
             builder.equipment(
-                Equipment.SOARFAE,
-                Equipment.ALBEDO
+                    Equipment.SOARFAE,
+                    Equipment.ALBEDO
             );
         }
         IPlayer player = builder.build();
@@ -124,8 +183,8 @@ class CombinationTests {
         assertSkillPoints(player, 0, 0, 0, 0, 45);
         assertValid(result);
         assertInvalid(result,
-            Equipment.SOARFAE,
-            Equipment.ALBEDO
+                Equipment.SOARFAE,
+                Equipment.ALBEDO
         );
     }
 
@@ -135,8 +194,8 @@ class CombinationTests {
             builder.allocate(SkillPoint.STRENGTH, 37);
             builder.allocate(SkillPoint.DEXTERITY, 70);
             builder.equipment(
-                Equipment.BRAINWASH,
-                Equipment.SHATTERGLASS
+                    Equipment.BRAINWASH,
+                    Equipment.SHATTERGLASS
             );
         }
         IPlayer player = builder.build();
@@ -144,8 +203,8 @@ class CombinationTests {
         assertSkillPoints(player, 37, 70, 0, 0, 0);
         assertValid(result);
         assertInvalid(result,
-            Equipment.BRAINWASH,
-            Equipment.SHATTERGLASS
+                Equipment.BRAINWASH,
+                Equipment.SHATTERGLASS
         );
     }
 
@@ -154,8 +213,8 @@ class CombinationTests {
         {
             builder.allocate(SkillPoint.AGILITY, 95);
             builder.equipment(
-                Equipment.DIAMOND_STEAM_RING,
-                Equipment.DIAMOND_STEAM_RING
+                    Equipment.DIAMOND_STEAM_RING,
+                    Equipment.DIAMOND_STEAM_RING
             );
         }
         IPlayer player = builder.build();
@@ -163,8 +222,8 @@ class CombinationTests {
         assertSkillPoints(player, 0, 0, 0, 0, 95);
         assertValid(result);
         assertInvalid(result,
-            Equipment.DIAMOND_STEAM_RING,
-            Equipment.DIAMOND_STEAM_RING
+                Equipment.DIAMOND_STEAM_RING,
+                Equipment.DIAMOND_STEAM_RING
         );
     }
 
@@ -176,18 +235,18 @@ class CombinationTests {
             builder.allocate(SkillPoint.INTELLIGENCE, 48);
             builder.allocate(SkillPoint.DEFENCE, 45);
             builder.equipment(
-                Equipment.GRANITIC_METTLE,
-                Equipment.RATION,
-                Equipment.REPURPOSED_VESSELS
+                    Equipment.GRANITIC_METTLE,
+                    Equipment.RATION,
+                    Equipment.REPURPOSED_VESSELS
             );
         }
         IPlayer player = builder.build();
         IAlgorithm.Result result = algorithm.run(player);
         assertSkillPoints(player, 75, 42, 55, 52, -3);
         assertValid(result,
-            Equipment.GRANITIC_METTLE,
-            Equipment.RATION,
-            Equipment.REPURPOSED_VESSELS
+                Equipment.GRANITIC_METTLE,
+                Equipment.RATION,
+                Equipment.REPURPOSED_VESSELS
         );
         assertInvalid(result);
     }
@@ -198,8 +257,8 @@ class CombinationTests {
             builder.allocate(SkillPoint.STRENGTH, 43);
             builder.allocate(SkillPoint.INTELLIGENCE, 45);
             builder.equipment(
-                Equipment.SEISMOSOUL,
-                Equipment.SHATTERGLASS
+                    Equipment.SEISMOSOUL,
+                    Equipment.SHATTERGLASS
             );
         }
         IPlayer player = builder.build();
@@ -207,8 +266,8 @@ class CombinationTests {
         assertSkillPoints(player, 43, 0, 45, 0, 0);
         assertValid(result);
         assertInvalid(result,
-            Equipment.SEISMOSOUL,
-            Equipment.SHATTERGLASS
+                Equipment.SEISMOSOUL,
+                Equipment.SHATTERGLASS
         );
     }
 
@@ -219,9 +278,9 @@ class CombinationTests {
             builder.allocate(SkillPoint.DEXTERITY, 70);
             builder.allocate(SkillPoint.INTELLIGENCE, 90);
             builder.equipment(
-                Equipment.BRAINWASH,
-                Equipment.SAPPHIRE,
-                Equipment.SHATTERGLASS
+                    Equipment.BRAINWASH,
+                    Equipment.SAPPHIRE,
+                    Equipment.SHATTERGLASS
             );
         }
         IPlayer player = builder.build();
@@ -229,9 +288,9 @@ class CombinationTests {
         assertSkillPoints(player, 32, 70, 90, 0, 0);
         assertValid(result);
         assertInvalid(result,
-            Equipment.BRAINWASH,
-            Equipment.SAPPHIRE,
-            Equipment.SHATTERGLASS
+                Equipment.BRAINWASH,
+                Equipment.SAPPHIRE,
+                Equipment.SHATTERGLASS
         );
     }
 
@@ -243,24 +302,24 @@ class CombinationTests {
             builder.allocate(SkillPoint.DEFENCE, 45);
             builder.allocate(SkillPoint.AGILITY, 60);
             builder.equipment(
-                Equipment.DARKSTEEL_FULL_HELM,
-                Equipment.DARKSTEEL_CENTRIFUGE,
-                Equipment.EARTH_BREAKER,
-                Equipment.DAWNBREAK,
-                Equipment.BINDING_BRACE,
-                Equipment.DAREDEVIL
+                    Equipment.DARKSTEEL_FULL_HELM,
+                    Equipment.DARKSTEEL_CENTRIFUGE,
+                    Equipment.EARTH_BREAKER,
+                    Equipment.DAWNBREAK,
+                    Equipment.BINDING_BRACE,
+                    Equipment.DAREDEVIL
             );
         }
         IPlayer player = builder.build();
         IAlgorithm.Result result = algorithm.run(player);
         assertSkillPoints(player, 67, 68, -35, 68, 60);
         assertValid(result,
-            Equipment.DARKSTEEL_FULL_HELM,
-            Equipment.DARKSTEEL_CENTRIFUGE,
-            Equipment.EARTH_BREAKER,
-            Equipment.DAWNBREAK,
-            Equipment.BINDING_BRACE,
-            Equipment.DAREDEVIL
+                Equipment.DARKSTEEL_FULL_HELM,
+                Equipment.DARKSTEEL_CENTRIFUGE,
+                Equipment.EARTH_BREAKER,
+                Equipment.DAWNBREAK,
+                Equipment.BINDING_BRACE,
+                Equipment.DAREDEVIL
         );
         assertInvalid(result);
     }
@@ -279,16 +338,16 @@ class CombinationTests {
             builder.allocate(SkillPoint.DEXTERITY, 45);
             builder.allocate(SkillPoint.DEFENCE, 45);
             builder.equipment(
-                Equipment.GRANITIC_METTLE,
-                Equipment.REPURPOSED_VESSELS
+                    Equipment.GRANITIC_METTLE,
+                    Equipment.REPURPOSED_VESSELS
             );
         }
         IPlayer player = builder.build();
         IAlgorithm.Result result = algorithm.run(player);
         assertSkillPoints(player, 75, 42, -3, 52, -3);
         assertValid(result,
-            Equipment.GRANITIC_METTLE,
-            Equipment.REPURPOSED_VESSELS
+                Equipment.GRANITIC_METTLE,
+                Equipment.REPURPOSED_VESSELS
         );
         assertInvalid(result);
     }
@@ -304,8 +363,8 @@ class CombinationTests {
         {
             builder.allocate(SkillPoint.STRENGTH, 60);
             builder.equipment(
-                Equipment.ACIDOSIS,
-                Equipment.ACHROMATIC_GLOOM
+                    Equipment.ACIDOSIS,
+                    Equipment.ACHROMATIC_GLOOM
             );
         }
         IPlayer player = builder.build();
@@ -323,7 +382,7 @@ class CombinationTests {
      */
     private static void assertValid(IAlgorithm.Result result, IEquipment... expected) {
         assertThat(expected)
-            .containsExactlyInAnyOrderElementsOf(result.valid());
+                .containsExactlyInAnyOrderElementsOf(result.valid());
     }
 
     /**
@@ -334,7 +393,7 @@ class CombinationTests {
      */
     private static void assertInvalid(IAlgorithm.Result result, IEquipment... expected) {
         assertThat(expected)
-            .containsExactlyInAnyOrderElementsOf(result.invalid());
+                .containsExactlyInAnyOrderElementsOf(result.invalid());
     }
 
     /**
@@ -349,20 +408,72 @@ class CombinationTests {
      */
     private static void assertSkillPoints(IPlayer player, int strength, int dexterity, int intelligence, int defence, int agility) {
         assertThat(player.total(SkillPoint.STRENGTH))
-            .describedAs("Strength")
-            .isEqualTo(strength);
+                .describedAs("Strength")
+                .isEqualTo(strength);
         assertThat(player.total(SkillPoint.DEXTERITY))
-            .describedAs("Dexterity")
-            .isEqualTo(dexterity);
+                .describedAs("Dexterity")
+                .isEqualTo(dexterity);
         assertThat(player.total(SkillPoint.INTELLIGENCE))
-            .describedAs("Intelligence")
-            .isEqualTo(intelligence);
+                .describedAs("Intelligence")
+                .isEqualTo(intelligence);
         assertThat(player.total(SkillPoint.DEFENCE))
-            .describedAs("Defence")
-            .isEqualTo(defence);
+                .describedAs("Defence")
+                .isEqualTo(defence);
         assertThat(player.total(SkillPoint.AGILITY))
-            .describedAs("Agility")
-            .isEqualTo(agility);
+                .describedAs("Agility")
+                .isEqualTo(agility);
+    }
+
+    private static final class MutableEquipment implements IEquipment {
+
+        private int[] requirements;
+        private int[] bonuses;
+
+        private MutableEquipment(int[] requirements, int[] bonuses) {
+            set(requirements, bonuses);
+        }
+
+        private void set(int[] requirements, int[] bonuses) {
+            this.requirements = requirements;
+            this.bonuses = bonuses;
+        }
+
+        @Override
+        public EquipmentType type() {
+            return EquipmentType.ACCESSORY;
+        }
+
+        @Override
+        public int[] requirements() {
+            return requirements;
+        }
+
+        @Override
+        public int[] bonuses() {
+            return bonuses;
+        }
+
+        @Override
+        public boolean hasNegativeBonus() {
+            for (int bonus : bonuses) {
+                if (bonus < 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public boolean canEquip(IPlayer player) {
+            SkillPoint[] skills = SkillPoint.values();
+            for (int i = 0; i < requirements.length; i++) {
+                int requirement = requirements[i];
+                if (requirement > 0 && player.total(skills[i]) < requirement) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
 }
