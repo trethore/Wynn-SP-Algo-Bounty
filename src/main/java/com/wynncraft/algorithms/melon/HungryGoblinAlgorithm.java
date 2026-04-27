@@ -36,11 +36,19 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
     private long[] impactMasks = new long[0];
 
     private final int[] state = new int[SKILLS];
-    private final int[] playerBonuses = new int[SKILLS];
+    private final int[] bestBonuses = new int[SKILLS];
     private final long[] requiredBySkill = new long[SKILLS];
+    private final long[] addedRequiredBySkill = new long[SKILLS];
     private final long[] visited = new long[VISITED_WORDS];
 
+    private int base0;
+    private int base1;
+    private int base2;
+    private int base3;
+    private int base4;
+
     private int itemCount;
+    private int preparedItemCount = -1;
     private boolean useVisited;
     private long negativeMask;
     private long bestMask;
@@ -64,6 +72,7 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         bestMask = activeMask;
         bestCount = Long.bitCount(activeMask);
         bestWeight = maskWeight(activeMask);
+        captureBestBonuses();
 
         if (tryEquipEverything(remainingMask, allMask)) {
             return buildResult(player);
@@ -75,17 +84,39 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
 
     private void prepare(WynnPlayer player) {
         List<IEquipment> equipment = player.equipment();
-        itemCount = equipment.size();
-        ensureCapacity(itemCount);
+        int newItemCount = equipment.size();
+        ensureCapacity(newItemCount);
 
-        negativeMask = 0L;
-        Arrays.fill(requiredBySkill, 0L);
-        for (int i = 0; i < itemCount; i++) {
+        int commonPrefix = commonPreparedPrefix(equipment, newItemCount);
+        if (commonPrefix == newItemCount && preparedItemCount == newItemCount) {
+            itemCount = newItemCount;
+            loadState(player);
+            return;
+        }
+
+        if (commonPrefix < preparedItemCount) {
+            commonPrefix = 0;
+            negativeMask = 0L;
+            Arrays.fill(requiredBySkill, 0L);
+        }
+
+        itemCount = newItemCount;
+        preparedItemCount = newItemCount;
+        for (int i = commonPrefix; i < itemCount; i++) {
             loadItem(i, equipment.get(i));
         }
 
-        prepareImpactMasks();
+        prepareImpactMasks(commonPrefix);
         loadState(player);
+    }
+
+    private int commonPreparedPrefix(List<IEquipment> equipment, int newItemCount) {
+        int limit = Math.min(preparedItemCount, newItemCount);
+        int index = 0;
+        while (index < limit && items[index] == equipment.get(index)) {
+            index++;
+        }
+        return index;
     }
 
     private void loadItem(int index, IEquipment item) {
@@ -124,29 +155,87 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         requiredBySkill[4] |= req[4] > 0 ? bit : 0L;
     }
 
-    private void prepareImpactMasks() {
-        for (int i = 0; i < itemCount; i++) {
+    private void prepareImpactMasks(int changedFrom) {
+        if (changedFrom == 0) {
+            rebuildImpactMasks(0);
+            return;
+        }
+
+        collectAddedRequiredMasks(changedFrom);
+        updateExistingImpactMasks(changedFrom);
+        rebuildImpactMasks(changedFrom);
+    }
+
+    private void rebuildImpactMasks(int start) {
+        for (int i = start; i < itemCount; i++) {
             impactMasks[i] = impactMask(bonuses[i]);
         }
     }
 
+    private void collectAddedRequiredMasks(int changedFrom) {
+        Arrays.fill(addedRequiredBySkill, 0L);
+        for (int i = changedFrom; i < itemCount; i++) {
+            markAddedRequirements(i);
+        }
+    }
+
+    private void markAddedRequirements(int item) {
+        long bit = 1L << item;
+        int[] req = requirements[item];
+        addedRequiredBySkill[0] |= req[0] > 0 ? bit : 0L;
+        addedRequiredBySkill[1] |= req[1] > 0 ? bit : 0L;
+        addedRequiredBySkill[2] |= req[2] > 0 ? bit : 0L;
+        addedRequiredBySkill[3] |= req[3] > 0 ? bit : 0L;
+        addedRequiredBySkill[4] |= req[4] > 0 ? bit : 0L;
+    }
+
+    private void updateExistingImpactMasks(int changedFrom) {
+        if (!hasAddedRequirements()) {
+            return;
+        }
+
+        for (int i = 0; i < changedFrom; i++) {
+            addNewImpactToExistingItem(i);
+        }
+    }
+
+    private boolean hasAddedRequirements() {
+        return (addedRequiredBySkill[0] | addedRequiredBySkill[1] | addedRequiredBySkill[2]
+                | addedRequiredBySkill[3] | addedRequiredBySkill[4]) != 0L;
+    }
+
+    private void addNewImpactToExistingItem(int item) {
+        if (hasNegativeBonus[item]) {
+            impactMasks[item] |= impactMask(bonuses[item], addedRequiredBySkill);
+        }
+    }
+
     private long impactMask(int[] bonus) {
+        return impactMask(bonus, requiredBySkill);
+    }
+
+    private long impactMask(int[] bonus, long[] requiredMasks) {
         long mask = 0L;
-        mask |= bonus[0] < 0 ? requiredBySkill[0] : 0L;
-        mask |= bonus[1] < 0 ? requiredBySkill[1] : 0L;
-        mask |= bonus[2] < 0 ? requiredBySkill[2] : 0L;
-        mask |= bonus[3] < 0 ? requiredBySkill[3] : 0L;
-        mask |= bonus[4] < 0 ? requiredBySkill[4] : 0L;
+        mask |= bonus[0] < 0 ? requiredMasks[0] : 0L;
+        mask |= bonus[1] < 0 ? requiredMasks[1] : 0L;
+        mask |= bonus[2] < 0 ? requiredMasks[2] : 0L;
+        mask |= bonus[3] < 0 ? requiredMasks[3] : 0L;
+        mask |= bonus[4] < 0 ? requiredMasks[4] : 0L;
         return mask;
     }
 
     private void loadState(WynnPlayer player) {
         int[] allocated = PlayerAccess.allocated(player);
-        state[0] = allocated[0];
-        state[1] = allocated[1];
-        state[2] = allocated[2];
-        state[3] = allocated[3];
-        state[4] = allocated[4];
+        base0 = allocated[0];
+        base1 = allocated[1];
+        base2 = allocated[2];
+        base3 = allocated[3];
+        base4 = allocated[4];
+        state[0] = base0;
+        state[1] = base1;
+        state[2] = base2;
+        state[3] = base3;
+        state[4] = base4;
     }
 
     private void ensureCapacity(int size) {
@@ -187,6 +276,7 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
             bestMask = allMask;
             bestCount = itemCount;
             bestWeight += maskWeight(remainingMask);
+            captureBestBonuses();
             return true;
         }
         removeBonuses(remainingMask);
@@ -281,6 +371,7 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
             bestMask = activeMask;
             bestCount = count;
             bestWeight = weight;
+            captureBestBonuses();
         }
     }
 
@@ -401,7 +492,7 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
     private Result buildResult(WynnPlayer player) {
         if (bestCount == itemCount) {
             List<IEquipment> valid = player.equipment();
-            applyResult(player, bestMask);
+            applyResult(player);
             return new Result(valid, Collections.emptyList());
         }
 
@@ -423,24 +514,20 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
                 invalid.add(items[i]);
             }
         }
-        applyResult(player, bestMask);
+        applyResult(player);
         return new Result(valid, invalid);
     }
 
-    private void applyResult(WynnPlayer player, long mask) {
-        Arrays.fill(playerBonuses, 0);
-        long remaining = mask;
-        while (remaining != 0L) {
-            long bit = remaining & -remaining;
-            remaining ^= bit;
-            int[] bonus = bonuses[Long.numberOfTrailingZeros(bit)];
-            playerBonuses[0] += bonus[0];
-            playerBonuses[1] += bonus[1];
-            playerBonuses[2] += bonus[2];
-            playerBonuses[3] += bonus[3];
-            playerBonuses[4] += bonus[4];
-        }
-        PlayerAccess.setBonuses(player, playerBonuses);
+    private void captureBestBonuses() {
+        bestBonuses[0] = state[0] - base0;
+        bestBonuses[1] = state[1] - base1;
+        bestBonuses[2] = state[2] - base2;
+        bestBonuses[3] = state[3] - base3;
+        bestBonuses[4] = state[4] - base4;
+    }
+
+    private void applyResult(WynnPlayer player) {
+        PlayerAccess.setBonuses(player, bestBonuses);
     }
 
     private void resetPlayer(WynnPlayer player) {
