@@ -140,10 +140,10 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         int[] bonus = item.bonuses();
 
         items[index] = item;
-        loadItemStats(index, req, bonus);
+        loadItemStats(index, req, bonus, item.hasNegativeBonus());
     }
 
-    private void loadItemStats(int index, int[] req, int[] bonus) {
+    private void loadItemStats(int index, int[] req, int[] bonus, boolean negativeBonus) {
         long bit = 1L << index;
         negativeMask &= ~bit; //simply removes an item from negative mask. so it's no longer a requirement breaking neg item
         int r0 = req[STR];
@@ -168,8 +168,8 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         bonus4[index] = b4;
         weights[index] = b0 + b1 + b2 + b3 + b4;
         hasRequirement[index] = r0 > 0 || r1 > 0 || r2 > 0 || r3 > 0 || r4 > 0; // basic boolean algebra if one of the condition is met it should obviously return true
-        hasNegativeBonus[index] = b0 < 0 || b1 < 0 || b2 < 0 || b3 < 0 || b4 < 0; // same as the comment just above
-        negativeMask |= hasNegativeBonus[index] ? bit : 0L;
+        hasNegativeBonus[index] = negativeBonus;
+        negativeMask |= negativeBonus ? bit : 0L;
         markRequirements(req, bit);
     }
 
@@ -249,7 +249,9 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
 
             mask |= 1L << i;
             weight += weights[i];
-            addBonus(i);
+            if (weights[i] != 0) {
+                addBonus(i);
+            }
         }
         activatedFreeWeight = weight;
         return mask;
@@ -285,7 +287,7 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         long remaining = mask;
         while (remaining != 0L) {
             long bit = remaining & -remaining;
-            remaining ^= bit;
+            remaining &= remaining - 1L;
             if (!canEquipNow(Long.numberOfTrailingZeros(bit))) {
                 return false;
             }
@@ -298,7 +300,7 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         long remaining = mask & negativeMask;
         while (remaining != 0L) {
             long bit = remaining & -remaining;
-            remaining ^= bit;
+            remaining &= remaining - 1L;
             impacted |= impactMasks[Long.numberOfTrailingZeros(bit)];
         }
         return impacted;
@@ -309,7 +311,7 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         long remaining = mask;
         while (remaining != 0L) {
             long bit = remaining & -remaining;
-            remaining ^= bit;
+            remaining &= remaining - 1L;
             weight += weights[Long.numberOfTrailingZeros(bit)];
         }
         return weight;
@@ -342,7 +344,7 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         long candidates = remainingMask;
         while (candidates != 0L) {
             long bit = candidates & -candidates;
-            candidates ^= bit;
+            candidates &= candidates - 1L;
             int item = Long.numberOfTrailingZeros(bit);
 
             if (!canEquipNow(item)) {
@@ -394,11 +396,13 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
             long candidates = remainingMask & ~addedMask;
             while (candidates != 0L) {
                 long bit = candidates & -candidates;
-                candidates ^= bit;
+                candidates &= candidates - 1L;
                 int item = Long.numberOfTrailingZeros(bit);
                 if (!hasNegativeBonus[item] && canEquipNow(item)) {
                     changedMask |= bit;
-                    addBonus(item);
+                    if (weights[item] != 0) {
+                        addBonus(item);
+                    }
                 }
             }
             addedMask |= changedMask;
@@ -439,7 +443,7 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         long remaining = activeMask;
         while (remaining != 0L) {
             long bit = remaining & -remaining;
-            remaining ^= bit;
+            remaining &= remaining - 1L;
             int item = Long.numberOfTrailingZeros(bit);
             if (!itemStillValidWithoutOwnBonus(item)) {
                 return false;
@@ -465,7 +469,7 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         long remaining = mask;
         while (remaining != 0L) {
             long bit = remaining & -remaining;
-            remaining ^= bit;
+            remaining &= remaining - 1L;
             addBonus(Long.numberOfTrailingZeros(bit));
         }
     }
@@ -474,7 +478,7 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         long remaining = mask;
         while (remaining != 0L) {
             long bit = remaining & -remaining;
-            remaining ^= bit;
+            remaining &= remaining - 1L;
             subtractBonus(Long.numberOfTrailingZeros(bit));
         }
     }
