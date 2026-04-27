@@ -21,6 +21,11 @@ import java.util.List;
 public final class StarvingPlayer implements IPlayer {
 
     private static final SkillPoint[] SKILL_POINTS = SkillPoint.values();
+    private static final int STR = 0;
+    private static final int DEX = 1;
+    private static final int INT = 2;
+    private static final int DEF = 3;
+    private static final int AGI = 4;
 
     /*
      * We kept this fast and dumb ->
@@ -64,26 +69,26 @@ public final class StarvingPlayer implements IPlayer {
     public void modify(int[] skillPoints, boolean sum) {
         // Keep the five skills unrolled, bc loop is a bottleneck here.
         int sign = sum ? 1 : -1;
-        int delta0 = skillPoints[0] * sign;
-        int delta1 = skillPoints[1] * sign;
-        int delta2 = skillPoints[2] * sign;
-        int delta3 = skillPoints[3] * sign;
-        int delta4 = skillPoints[4] * sign;
-        bonus[0] += delta0;
-        bonus[1] += delta1;
-        bonus[2] += delta2;
-        bonus[3] += delta3;
-        bonus[4] += delta4;
+        int delta0 = skillPoints[STR] * sign;
+        int delta1 = skillPoints[DEX] * sign;
+        int delta2 = skillPoints[INT] * sign;
+        int delta3 = skillPoints[DEF] * sign;
+        int delta4 = skillPoints[AGI] * sign;
+        bonus[STR] += delta0;
+        bonus[DEX] += delta1;
+        bonus[INT] += delta2;
+        bonus[DEF] += delta3;
+        bonus[AGI] += delta4;
         weight += delta0 + delta1 + delta2 + delta3 + delta4;
     }
 
     @Override
     public void reset() {
-        bonus[0] = 0;
-        bonus[1] = 0;
-        bonus[2] = 0;
-        bonus[3] = 0;
-        bonus[4] = 0;
+        bonus[STR] = 0;
+        bonus[DEX] = 0;
+        bonus[INT] = 0;
+        bonus[DEF] = 0;
+        bonus[AGI] = 0;
         weight = 0;
     }
 
@@ -91,13 +96,6 @@ public final class StarvingPlayer implements IPlayer {
 
         private final List<IEquipment> equipment = new ArrayList<>(16);
         private final int[] allocated = new int[SKILL_POINTS.length];
-
-        /*
-         * Keep the same player on purpose.
-         * The benchmark adds one item, calls build(), then does it again.
-         * Same equipment list means cache/prefix work can be reused.
-         */
-        private final StarvingPlayer player = new StarvingPlayer(equipment, allocated);
 
         @Override
         public IPlayerBuilder<StarvingPlayer> equipment(IEquipment... items) {
@@ -113,7 +111,7 @@ public final class StarvingPlayer implements IPlayer {
 
         @Override
         public StarvingPlayer build() {
-            return player;
+            return new StarvingPlayer(new ArrayList<>(equipment), allocated.clone());
         }
     }
 }

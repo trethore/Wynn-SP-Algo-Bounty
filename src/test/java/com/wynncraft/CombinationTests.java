@@ -68,6 +68,27 @@ class CombinationTests {
     }
 
     @CombinationTest
+    public void rejects_stale_cached_result(IAlgorithm algorithm, IPlayerBuilder builder) {
+        // Anti cache test rip my x1203 :(
+        {
+            builder.equipment(Equipment.GALES_FORCE);
+        }
+
+        IPlayer underRequirement = builder.build();
+        IAlgorithm.Result firstResult = algorithm.run(underRequirement);
+        assertSkillPoints(underRequirement, 0, 0, 0, 0, 0);
+        assertValid(firstResult);
+        assertInvalid(firstResult, Equipment.GALES_FORCE);
+
+        builder.allocate(SkillPoint.AGILITY, 60);
+        IPlayer meetsRequirement = builder.build();
+        IAlgorithm.Result secondResult = algorithm.run(meetsRequirement);
+        assertSkillPoints(meetsRequirement, 0, 0, 0, 0, 60);
+        assertValid(secondResult, Equipment.GALES_FORCE);
+        assertInvalid(secondResult);
+    }
+
+    @CombinationTest
     public void bootstrap_1(IAlgorithm algorithm, IPlayerBuilder builder) {
         {
             builder.allocate(SkillPoint.AGILITY, 84);
