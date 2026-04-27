@@ -1,13 +1,14 @@
 package com.wynncraft;
 
 
+import com.wynncraft.algorithms.NegativeOrderAlgorithm;
 import com.wynncraft.algorithms.CapyTopoAlgorithm;
 import com.wynncraft.algorithms.melon.HungryGoblinAlgorithm;
+import com.wynncraft.algorithms.PrunedMaskAlgorithm;
+import com.wynncraft.algorithms.PrunedMaskV2Algorithm;
 import com.wynncraft.algorithms.WynnFrumaAlgorithm;
 import com.wynncraft.algorithms.melon.EDGNAlgorithm;
 import com.wynncraft.algorithms.melon.HungryPlayer;
-import com.wynncraft.algorithms.melon.StarvingGoblinAlgorithm;
-import com.wynncraft.algorithms.melon.StarvingPlayer;
 import com.wynncraft.core.WynnPlayer;
 import com.wynncraft.core.interfaces.IAlgorithm;
 import com.wynncraft.core.interfaces.IPlayerBuilder;
@@ -28,7 +29,9 @@ public class AlgorithmRegistry {
         register(new CapyTopoAlgorithm(), WynnPlayer.Builder::new);
         register(new EDGNAlgorithm(), WynnPlayer.Builder::new);
         register(new HungryGoblinAlgorithm(), HungryPlayer.Builder::new);
-        register(new StarvingGoblinAlgorithm(), StarvingPlayer.Builder::new);
+        register(new NegativeOrderAlgorithm(), WynnPlayer.Builder::new);
+        register(new PrunedMaskAlgorithm(), WynnPlayer.Builder::new);
+        register(new PrunedMaskV2Algorithm(), WynnPlayer.Builder::new);
     }
 
     /**
