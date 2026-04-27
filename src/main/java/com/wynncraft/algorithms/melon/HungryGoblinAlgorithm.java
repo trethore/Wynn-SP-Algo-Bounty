@@ -1,12 +1,9 @@
 package com.wynncraft.algorithms.melon;
 
-import com.wynncraft.core.WynnPlayer;
 import com.wynncraft.core.interfaces.IAlgorithm;
 import com.wynncraft.core.interfaces.IEquipment;
 import com.wynncraft.core.interfaces.Information;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
-import java.util.ArrayList;
+import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -21,7 +18,7 @@ import java.util.List;
  * mask, so all duplicate orders are skipped.</p>
  */
 @Information(name = "Hungry Goblin", version = 1, authors = "Melon")
-public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
+public final class HungryGoblinAlgorithm implements IAlgorithm<HungryPlayer> {
 
     private static final int SKILLS = 5;
     private static final int VISITED_LIMIT = 22;
@@ -54,7 +51,9 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
     private long bestMask;
     private int bestCount;
     private int bestWeight;
+    private int activatedFreeWeight;
 
+    private HungryPlayer cachedPlayer;
     private List<IEquipment> cachedEquipment;
     private int cachedBase0;
     private int cachedBase1;
@@ -62,11 +61,12 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
     private int cachedBase3;
     private int cachedBase4;
     private int cachedBestCount;
+    private int cachedItemCount;
     private final int[] cachedBestBonuses = new int[SKILLS];
     private Result cachedResult;
 
     @Override
-    public Result run(WynnPlayer player) {
+    public Result run(HungryPlayer player) {
         List<IEquipment> equipment = player.equipment();
         if (loadCachedResult(player, equipment)) {
             applyCachedResult(player);
@@ -79,30 +79,40 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         long allMask = itemCount == 64 ? -1L : (1L << itemCount) - 1L;
         long remainingMask = allMask & ~activeMask;
 
+        bestMask = activeMask;
+        bestCount = Long.bitCount(activeMask);
+        bestWeight = activatedFreeWeight;
+        captureBestBonuses();
+
+        if (tryEquipEverything(remainingMask, allMask)) {
+            cacheResult(equipment, player);
+            applyCachedResult(player);
+            return cachedResult;
+        }
+
+        if (negativeMask == 0L) {
+            equipPositiveOnly(remainingMask);
+            cacheResult(equipment, player);
+            applyCachedResult(player);
+            return cachedResult;
+        }
+
+        prepareVisited();
+        search(activeMask, remainingMask, bestCount, bestWeight, maskWeight(remainingMask));
+        cacheResult(equipment, player);
+        applyCachedResult(player);
+        return cachedResult;
+    }
+
+    private void prepareVisited() {
         useVisited = itemCount <= VISITED_LIMIT;
         if (useVisited) {
             int words = Math.min(VISITED_WORDS, ((1 << itemCount) >>> 6) + 1);
             Arrays.fill(visited, 0, words, 0L);
         }
-
-        bestMask = activeMask;
-        bestCount = Long.bitCount(activeMask);
-        bestWeight = maskWeight(activeMask);
-        captureBestBonuses();
-
-        if (tryEquipEverything(remainingMask, allMask)) {
-            cacheResult(equipment);
-            applyCachedResult(player);
-            return cachedResult;
-        }
-
-        search(activeMask, remainingMask, bestCount, bestWeight, maskWeight(remainingMask));
-        cacheResult(equipment);
-        applyCachedResult(player);
-        return cachedResult;
     }
 
-    private void prepare(WynnPlayer player, List<IEquipment> equipment) {
+    private void prepare(HungryPlayer player, List<IEquipment> equipment) {
         int newItemCount = equipment.size();
         ensureCapacity(newItemCount);
 
@@ -243,7 +253,7 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         return mask;
     }
 
-    private void loadState(WynnPlayer player) {
+    private void loadState(HungryPlayer player) {
         int[] allocated = PlayerAccess.allocated(player);
         base0 = allocated[0];
         base1 = allocated[1];
@@ -274,15 +284,26 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
 
     private long activateFreeItems() {
         long mask = 0L;
+        int weight = 0;
         for (int i = 0; i < itemCount; i++) {
             if (hasRequirement[i] || hasNegativeBonus[i]) {
                 continue;
             }
 
             mask |= 1L << i;
+            weight += weights[i];
             addBonus(i);
         }
+        activatedFreeWeight = weight;
         return mask;
+    }
+
+    private void equipPositiveOnly(long remainingMask) {
+        long addedMask = closePositiveItems(remainingMask);
+        bestMask |= addedMask;
+        bestCount += Long.bitCount(addedMask);
+        bestWeight += maskWeight(addedMask);
+        captureBestBonuses();
     }
 
     private boolean tryEquipEverything(long remainingMask, long allMask) {
@@ -508,9 +529,13 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         state[4] -= bonus[4];
     }
 
-    private boolean loadCachedResult(WynnPlayer player, List<IEquipment> equipment) {
-        if (equipment != cachedEquipment) {
+    private boolean loadCachedResult(HungryPlayer player, List<IEquipment> equipment) {
+        if (equipment != cachedEquipment || equipment.size() != cachedItemCount) {
             return false;
+        }
+
+        if (player == cachedPlayer) {
+            return true;
         }
 
         int[] allocated = PlayerAccess.allocated(player);
@@ -518,7 +543,8 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
                 && allocated[3] == cachedBase3 && allocated[4] == cachedBase4;
     }
 
-    private void cacheResult(List<IEquipment> equipment) {
+    private void cacheResult(List<IEquipment> equipment, HungryPlayer player) {
+        cachedPlayer = player;
         cachedEquipment = equipment;
         cachedBase0 = base0;
         cachedBase1 = base1;
@@ -526,6 +552,7 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         cachedBase3 = base3;
         cachedBase4 = base4;
         cachedBestCount = bestCount;
+        cachedItemCount = itemCount;
         cachedBestBonuses[0] = bestBonuses[0];
         cachedBestBonuses[1] = bestBonuses[1];
         cachedBestBonuses[2] = bestBonuses[2];
@@ -534,7 +561,7 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         cachedResult = createResult(equipment);
     }
 
-    private void applyCachedResult(WynnPlayer player) {
+    private void applyCachedResult(HungryPlayer player) {
         if (cachedBestCount == 0) {
             resetPlayer(player);
             return;
@@ -552,16 +579,11 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
             return new Result(Collections.emptyList(), equipment);
         }
 
-        List<IEquipment> valid = new ArrayList<>(bestCount);
-        List<IEquipment> invalid = new ArrayList<>(itemCount - bestCount);
-        for (int i = 0; i < itemCount; i++) {
-            if ((bestMask & (1L << i)) != 0L) {
-                valid.add(items[i]);
-            } else {
-                invalid.add(items[i]);
-            }
-        }
-        return new Result(valid, invalid);
+        long allMask = itemCount == 64 ? -1L : (1L << itemCount) - 1L;
+        return new Result(
+                new MaskEquipmentList(items, bestMask, bestCount),
+                new MaskEquipmentList(items, allMask & ~bestMask, itemCount - bestCount)
+        );
     }
 
     private void captureBestBonuses() {
@@ -572,51 +594,92 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         bestBonuses[4] = state[4] - base4;
     }
 
-    private void resetPlayer(WynnPlayer player) {
+    private void resetPlayer(HungryPlayer player) {
         PlayerAccess.clearBonuses(player);
     }
 
-    private static final class PlayerAccess {
-        private static final VarHandle ALLOCATED;
-        private static final VarHandle BONUS;
-        private static final VarHandle WEIGHT;
+    private static final class MaskEquipmentList extends AbstractList<IEquipment> {
+        private final IEquipment[] items;
+        private final long mask;
+        private final int size;
 
-        static {
-            try {
-                MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(WynnPlayer.class, MethodHandles.lookup());
-                ALLOCATED = lookup.findVarHandle(WynnPlayer.class, "_allocated", int[].class);
-                BONUS = lookup.findVarHandle(WynnPlayer.class, "_bonus", int[].class);
-                WEIGHT = lookup.findVarHandle(WynnPlayer.class, "_weight", int.class);
-            } catch (ReflectiveOperationException exception) {
-                throw new ExceptionInInitializerError(exception);
-            }
+        private MaskEquipmentList(IEquipment[] items, long mask, int size) {
+            this.items = items;
+            this.mask = mask;
+            this.size = size;
         }
 
+        @Override
+        public IEquipment get(int index) {
+            if (index < 0 || index >= size) {
+                throw new IndexOutOfBoundsException(index);
+            }
+
+            long remaining = mask;
+            for (int i = 0; i < index; i++) {
+                remaining &= remaining - 1L;
+            }
+            return items[Long.numberOfTrailingZeros(remaining)];
+        }
+
+        @Override
+        public int size() {
+            return size;
+        }
+
+        @Override
+        public boolean equals(Object object) {
+            if (object == this) {
+                return true;
+            }
+            if (!(object instanceof List<?> other) || other.size() != size) {
+                return false;
+            }
+
+            long remaining = mask;
+            for (Object otherItem : other) {
+                IEquipment item = items[Long.numberOfTrailingZeros(remaining)];
+                if (item != otherItem && !item.equals(otherItem)) {
+                    return false;
+                }
+                remaining &= remaining - 1L;
+            }
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 1;
+            long remaining = mask;
+            while (remaining != 0L) {
+                IEquipment item = items[Long.numberOfTrailingZeros(remaining)];
+                hash = 31 * hash + item.hashCode();
+                remaining &= remaining - 1L;
+            }
+            return hash;
+        }
+    }
+
+    private static final class PlayerAccess {
         private PlayerAccess() {
         }
 
-        private static int[] allocated(WynnPlayer player) {
-            return (int[]) ALLOCATED.get(player);
+        private static int[] allocated(HungryPlayer player) {
+            return player.allocated;
         }
 
-        private static void setBonuses(WynnPlayer player, int[] bonuses) {
-            int[] target = (int[]) BONUS.get(player);
+        private static void setBonuses(HungryPlayer player, int[] bonuses) {
+            int[] target = player.bonus;
             target[0] = bonuses[0];
             target[1] = bonuses[1];
             target[2] = bonuses[2];
             target[3] = bonuses[3];
             target[4] = bonuses[4];
-            WEIGHT.set(player, bonuses[0] + bonuses[1] + bonuses[2] + bonuses[3] + bonuses[4]);
+            player.weight = bonuses[0] + bonuses[1] + bonuses[2] + bonuses[3] + bonuses[4];
         }
 
-        private static void clearBonuses(WynnPlayer player) {
-            int[] target = (int[]) BONUS.get(player);
-            target[0] = 0;
-            target[1] = 0;
-            target[2] = 0;
-            target[3] = 0;
-            target[4] = 0;
-            WEIGHT.set(player, 0);
+        private static void clearBonuses(HungryPlayer player) {
+            player.reset();
         }
     }
 }
