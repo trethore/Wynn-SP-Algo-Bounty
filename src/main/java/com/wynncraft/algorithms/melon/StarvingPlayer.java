@@ -14,6 +14,12 @@ public final class StarvingPlayer implements IPlayer {
 
     private static final SkillPoint[] SKILL_POINTS = SkillPoint.values();
 
+    /*
+     * We kept this fast and dumb ->
+     * StarvingGoblin reads/writes these arrays directly in the hot path.
+     * That lets it copy the best bonus result into the player instead of
+     * rebuilding it from equipment or going through getters for each skill wich is slow af.
+     */
     final List<IEquipment> equipment;
     final int[] allocated;
     final int[] bonus = new int[SKILL_POINTS.length];
@@ -47,6 +53,7 @@ public final class StarvingPlayer implements IPlayer {
 
     @Override
     public void modify(int[] skillPoints, boolean sum) {
+        // Keep the five skills unrolled, bc loop is a bottleneck here.
         int sign = sum ? 1 : -1;
         int delta0 = skillPoints[0] * sign;
         int delta1 = skillPoints[1] * sign;
@@ -75,6 +82,12 @@ public final class StarvingPlayer implements IPlayer {
 
         private final List<IEquipment> equipment = new ArrayList<>(16);
         private final int[] allocated = new int[SKILL_POINTS.length];
+
+        /*
+         * Keep the same player on purpose.
+         * The benchmark adds one item, calls build(), then does it again.
+         * Same equipment list means cache/prefix work can be reused.
+         */
         private final StarvingPlayer player = new StarvingPlayer(equipment, allocated);
 
         @Override
