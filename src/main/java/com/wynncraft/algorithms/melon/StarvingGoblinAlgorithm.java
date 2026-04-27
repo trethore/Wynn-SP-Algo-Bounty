@@ -28,6 +28,16 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
     private int[][] requirements = new int[0][];
     private int[][] bonuses = new int[0][];
     private int[] weights = new int[0];
+    private int[] req0 = new int[0];
+    private int[] req1 = new int[0];
+    private int[] req2 = new int[0];
+    private int[] req3 = new int[0];
+    private int[] req4 = new int[0];
+    private int[] bonus0 = new int[0];
+    private int[] bonus1 = new int[0];
+    private int[] bonus2 = new int[0];
+    private int[] bonus3 = new int[0];
+    private int[] bonus4 = new int[0];
     private boolean[] hasRequirement = new boolean[0];
     private boolean[] hasNegativeBonus = new boolean[0];
     private long[] impactMasks = new long[0];
@@ -160,8 +170,9 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         ensureCapacity(newItemCount);
 
         int commonPrefix = commonPreparedPrefix(equipment, newItemCount);
-        if (commonPrefix == newItemCount && preparedItemCount == newItemCount) {
+        if (commonPrefix == newItemCount) {
             itemCount = newItemCount;
+            preparedItemCount = newItemCount;
             loadState(player);
             return;
         }
@@ -204,19 +215,32 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
 
     private void loadItemStats(int index, int[] req, int[] bonus) {
         long bit = 1L << index;
-        weights[index] = bonus[0] + bonus[1] + bonus[2] + bonus[3] + bonus[4];
-        hasRequirement[index] = hasRequirement(req);
-        hasNegativeBonus[index] = hasNegativeBonus(bonus);
+        negativeMask &= ~bit;
+        int r0 = req[0];
+        int r1 = req[1];
+        int r2 = req[2];
+        int r3 = req[3];
+        int r4 = req[4];
+        int b0 = bonus[0];
+        int b1 = bonus[1];
+        int b2 = bonus[2];
+        int b3 = bonus[3];
+        int b4 = bonus[4];
+        req0[index] = r0;
+        req1[index] = r1;
+        req2[index] = r2;
+        req3[index] = r3;
+        req4[index] = r4;
+        bonus0[index] = b0;
+        bonus1[index] = b1;
+        bonus2[index] = b2;
+        bonus3[index] = b3;
+        bonus4[index] = b4;
+        weights[index] = b0 + b1 + b2 + b3 + b4;
+        hasRequirement[index] = r0 > 0 || r1 > 0 || r2 > 0 || r3 > 0 || r4 > 0;
+        hasNegativeBonus[index] = b0 < 0 || b1 < 0 || b2 < 0 || b3 < 0 || b4 < 0;
         negativeMask |= hasNegativeBonus[index] ? bit : 0L;
         markRequirements(req, bit);
-    }
-
-    private boolean hasRequirement(int[] req) {
-        return req[0] > 0 || req[1] > 0 || req[2] > 0 || req[3] > 0 || req[4] > 0;
-    }
-
-    private boolean hasNegativeBonus(int[] bonus) {
-        return bonus[0] < 0 || bonus[1] < 0 || bonus[2] < 0 || bonus[3] < 0 || bonus[4] < 0;
     }
 
     private void markRequirements(int[] req, long bit) {
@@ -253,12 +277,11 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
 
     private void markAddedRequirements(int item) {
         long bit = 1L << item;
-        int[] req = requirements[item];
-        addedRequiredBySkill[0] |= req[0] > 0 ? bit : 0L;
-        addedRequiredBySkill[1] |= req[1] > 0 ? bit : 0L;
-        addedRequiredBySkill[2] |= req[2] > 0 ? bit : 0L;
-        addedRequiredBySkill[3] |= req[3] > 0 ? bit : 0L;
-        addedRequiredBySkill[4] |= req[4] > 0 ? bit : 0L;
+        addedRequiredBySkill[0] |= req0[item] > 0 ? bit : 0L;
+        addedRequiredBySkill[1] |= req1[item] > 0 ? bit : 0L;
+        addedRequiredBySkill[2] |= req2[item] > 0 ? bit : 0L;
+        addedRequiredBySkill[3] |= req3[item] > 0 ? bit : 0L;
+        addedRequiredBySkill[4] |= req4[item] > 0 ? bit : 0L;
     }
 
     private void updateExistingImpactMasks(int changedFrom) {
@@ -320,6 +343,16 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         requirements = Arrays.copyOf(requirements, capacity);
         bonuses = Arrays.copyOf(bonuses, capacity);
         weights = Arrays.copyOf(weights, capacity);
+        req0 = Arrays.copyOf(req0, capacity);
+        req1 = Arrays.copyOf(req1, capacity);
+        req2 = Arrays.copyOf(req2, capacity);
+        req3 = Arrays.copyOf(req3, capacity);
+        req4 = Arrays.copyOf(req4, capacity);
+        bonus0 = Arrays.copyOf(bonus0, capacity);
+        bonus1 = Arrays.copyOf(bonus1, capacity);
+        bonus2 = Arrays.copyOf(bonus2, capacity);
+        bonus3 = Arrays.copyOf(bonus3, capacity);
+        bonus4 = Arrays.copyOf(bonus4, capacity);
         hasRequirement = Arrays.copyOf(hasRequirement, capacity);
         hasNegativeBonus = Arrays.copyOf(hasNegativeBonus, capacity);
         impactMasks = Arrays.copyOf(impactMasks, capacity);
@@ -505,12 +538,16 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
     }
 
     private boolean canEquipNow(int item) {
-        int[] req = requirements[item];
-        return (req[0] <= 0 || state[0] >= req[0])
-                && (req[1] <= 0 || state[1] >= req[1])
-                && (req[2] <= 0 || state[2] >= req[2])
-                && (req[3] <= 0 || state[3] >= req[3])
-                && (req[4] <= 0 || state[4] >= req[4]);
+        int r0 = req0[item];
+        int r1 = req1[item];
+        int r2 = req2[item];
+        int r3 = req3[item];
+        int r4 = req4[item];
+        return (r0 <= 0 || state[0] >= r0)
+                && (r1 <= 0 || state[1] >= r1)
+                && (r2 <= 0 || state[2] >= r2)
+                && (r3 <= 0 || state[3] >= r3)
+                && (r4 <= 0 || state[4] >= r4);
     }
 
     private boolean activeItemsRemainValid(long activeMask) {
@@ -527,13 +564,16 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
     }
 
     private boolean itemStillValidWithoutOwnBonus(int item) {
-        int[] req = requirements[item];
-        int[] bonus = bonuses[item];
-        return (req[0] <= 0 || state[0] >= req[0] + bonus[0])
-                && (req[1] <= 0 || state[1] >= req[1] + bonus[1])
-                && (req[2] <= 0 || state[2] >= req[2] + bonus[2])
-                && (req[3] <= 0 || state[3] >= req[3] + bonus[3])
-                && (req[4] <= 0 || state[4] >= req[4] + bonus[4]);
+        int r0 = req0[item];
+        int r1 = req1[item];
+        int r2 = req2[item];
+        int r3 = req3[item];
+        int r4 = req4[item];
+        return (r0 <= 0 || state[0] >= r0 + bonus0[item])
+                && (r1 <= 0 || state[1] >= r1 + bonus1[item])
+                && (r2 <= 0 || state[2] >= r2 + bonus2[item])
+                && (r3 <= 0 || state[3] >= r3 + bonus3[item])
+                && (r4 <= 0 || state[4] >= r4 + bonus4[item]);
     }
 
     private void addBonuses(long mask) {
@@ -555,21 +595,19 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
     }
 
     private void addBonus(int item) {
-        int[] bonus = bonuses[item];
-        state[0] += bonus[0];
-        state[1] += bonus[1];
-        state[2] += bonus[2];
-        state[3] += bonus[3];
-        state[4] += bonus[4];
+        state[0] += bonus0[item];
+        state[1] += bonus1[item];
+        state[2] += bonus2[item];
+        state[3] += bonus3[item];
+        state[4] += bonus4[item];
     }
 
     private void subtractBonus(int item) {
-        int[] bonus = bonuses[item];
-        state[0] -= bonus[0];
-        state[1] -= bonus[1];
-        state[2] -= bonus[2];
-        state[3] -= bonus[3];
-        state[4] -= bonus[4];
+        state[0] -= bonus0[item];
+        state[1] -= bonus1[item];
+        state[2] -= bonus2[item];
+        state[3] -= bonus3[item];
+        state[4] -= bonus4[item];
     }
 
     private boolean loadCachedResult(StarvingPlayer player, List<IEquipment> equipment) {
