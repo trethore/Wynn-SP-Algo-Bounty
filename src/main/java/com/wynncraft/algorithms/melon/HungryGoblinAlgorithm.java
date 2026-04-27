@@ -55,9 +55,25 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
     private int bestCount;
     private int bestWeight;
 
+    private List<IEquipment> cachedEquipment;
+    private int cachedBase0;
+    private int cachedBase1;
+    private int cachedBase2;
+    private int cachedBase3;
+    private int cachedBase4;
+    private int cachedBestCount;
+    private final int[] cachedBestBonuses = new int[SKILLS];
+    private Result cachedResult;
+
     @Override
     public Result run(WynnPlayer player) {
-        prepare(player);
+        List<IEquipment> equipment = player.equipment();
+        if (loadCachedResult(player, equipment)) {
+            applyCachedResult(player);
+            return cachedResult;
+        }
+
+        prepare(player, equipment);
 
         long activeMask = activateFreeItems();
         long allMask = itemCount == 64 ? -1L : (1L << itemCount) - 1L;
@@ -75,15 +91,18 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         captureBestBonuses();
 
         if (tryEquipEverything(remainingMask, allMask)) {
-            return buildResult(player);
+            cacheResult(equipment);
+            applyCachedResult(player);
+            return cachedResult;
         }
 
         search(activeMask, remainingMask, bestCount, bestWeight, maskWeight(remainingMask));
-        return buildResult(player);
+        cacheResult(equipment);
+        applyCachedResult(player);
+        return cachedResult;
     }
 
-    private void prepare(WynnPlayer player) {
-        List<IEquipment> equipment = player.equipment();
+    private void prepare(WynnPlayer player, List<IEquipment> equipment) {
         int newItemCount = equipment.size();
         ensureCapacity(newItemCount);
 
@@ -489,22 +508,50 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         state[4] -= bonus[4];
     }
 
-    private Result buildResult(WynnPlayer player) {
+    private boolean loadCachedResult(WynnPlayer player, List<IEquipment> equipment) {
+        if (equipment != cachedEquipment) {
+            return false;
+        }
+
+        int[] allocated = PlayerAccess.allocated(player);
+        return allocated[0] == cachedBase0 && allocated[1] == cachedBase1 && allocated[2] == cachedBase2
+                && allocated[3] == cachedBase3 && allocated[4] == cachedBase4;
+    }
+
+    private void cacheResult(List<IEquipment> equipment) {
+        cachedEquipment = equipment;
+        cachedBase0 = base0;
+        cachedBase1 = base1;
+        cachedBase2 = base2;
+        cachedBase3 = base3;
+        cachedBase4 = base4;
+        cachedBestCount = bestCount;
+        cachedBestBonuses[0] = bestBonuses[0];
+        cachedBestBonuses[1] = bestBonuses[1];
+        cachedBestBonuses[2] = bestBonuses[2];
+        cachedBestBonuses[3] = bestBonuses[3];
+        cachedBestBonuses[4] = bestBonuses[4];
+        cachedResult = createResult(equipment);
+    }
+
+    private void applyCachedResult(WynnPlayer player) {
+        if (cachedBestCount == 0) {
+            resetPlayer(player);
+            return;
+        }
+
+        PlayerAccess.setBonuses(player, cachedBestBonuses);
+    }
+
+    private Result createResult(List<IEquipment> equipment) {
         if (bestCount == itemCount) {
-            List<IEquipment> valid = player.equipment();
-            applyResult(player);
-            return new Result(valid, Collections.emptyList());
+            return new Result(equipment, Collections.emptyList());
         }
 
         if (bestCount == 0) {
-            resetPlayer(player);
-            return new Result(Collections.emptyList(), player.equipment());
+            return new Result(Collections.emptyList(), equipment);
         }
 
-        return buildPartialResult(player);
-    }
-
-    private Result buildPartialResult(WynnPlayer player) {
         List<IEquipment> valid = new ArrayList<>(bestCount);
         List<IEquipment> invalid = new ArrayList<>(itemCount - bestCount);
         for (int i = 0; i < itemCount; i++) {
@@ -514,7 +561,6 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
                 invalid.add(items[i]);
             }
         }
-        applyResult(player);
         return new Result(valid, invalid);
     }
 
@@ -524,10 +570,6 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
         bestBonuses[2] = state[2] - base2;
         bestBonuses[3] = state[3] - base3;
         bestBonuses[4] = state[4] - base4;
-    }
-
-    private void applyResult(WynnPlayer player) {
-        PlayerAccess.setBonuses(player, bestBonuses);
     }
 
     private void resetPlayer(WynnPlayer player) {
