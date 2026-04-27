@@ -4,8 +4,8 @@ import com.wynncraft.core.WynnPlayer;
 import com.wynncraft.core.interfaces.IAlgorithm;
 import com.wynncraft.core.interfaces.IEquipment;
 import com.wynncraft.core.interfaces.Information;
-import com.wynncraft.enums.SkillPoint;
-
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,8 +23,7 @@ import java.util.List;
 @Information(name = "Hungry Goblin", version = 1, authors = "Melon")
 public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
 
-    private static final SkillPoint[] SKILL_POINTS = SkillPoint.values();
-    private static final int SKILLS = SKILL_POINTS.length;
+    private static final int SKILLS = 5;
     private static final int VISITED_LIMIT = 22;
     private static final int VISITED_WORDS = (1 << VISITED_LIMIT) >>> 6;
 
@@ -142,11 +141,12 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
     }
 
     private void loadState(WynnPlayer player) {
-        state[0] = player.allocated(SKILL_POINTS[0]);
-        state[1] = player.allocated(SKILL_POINTS[1]);
-        state[2] = player.allocated(SKILL_POINTS[2]);
-        state[3] = player.allocated(SKILL_POINTS[3]);
-        state[4] = player.allocated(SKILL_POINTS[4]);
+        int[] allocated = PlayerAccess.allocated(player);
+        state[0] = allocated[0];
+        state[1] = allocated[1];
+        state[2] = allocated[2];
+        state[3] = allocated[3];
+        state[4] = allocated[4];
     }
 
     private void ensureCapacity(int size) {
@@ -401,7 +401,7 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
     private Result buildResult(WynnPlayer player) {
         if (bestCount == itemCount) {
             List<IEquipment> valid = player.equipment();
-            applyResult(player, valid);
+            applyResult(player, bestMask);
             return new Result(valid, Collections.emptyList());
         }
 
@@ -423,32 +423,71 @@ public final class HungryGoblinAlgorithm implements IAlgorithm<WynnPlayer> {
                 invalid.add(items[i]);
             }
         }
-        applyResult(player, valid);
+        applyResult(player, bestMask);
         return new Result(valid, invalid);
     }
 
-    private void applyResult(WynnPlayer player, List<IEquipment> valid) {
-        resetPlayer(player);
+    private void applyResult(WynnPlayer player, long mask) {
         Arrays.fill(playerBonuses, 0);
-        for (IEquipment item : valid) {
-            addToPlayerBonuses(item.bonuses());
+        long remaining = mask;
+        while (remaining != 0L) {
+            long bit = remaining & -remaining;
+            remaining ^= bit;
+            int[] bonus = bonuses[Long.numberOfTrailingZeros(bit)];
+            playerBonuses[0] += bonus[0];
+            playerBonuses[1] += bonus[1];
+            playerBonuses[2] += bonus[2];
+            playerBonuses[3] += bonus[3];
+            playerBonuses[4] += bonus[4];
         }
-        player.modify(playerBonuses, true);
-    }
-
-    private void addToPlayerBonuses(int[] bonus) {
-        playerBonuses[0] += bonus[0];
-        playerBonuses[1] += bonus[1];
-        playerBonuses[2] += bonus[2];
-        playerBonuses[3] += bonus[3];
-        playerBonuses[4] += bonus[4];
+        PlayerAccess.setBonuses(player, playerBonuses);
     }
 
     private void resetPlayer(WynnPlayer player) {
-        for (int skill = 0; skill < SKILLS; skill++) {
-            SkillPoint skillPoint = SKILL_POINTS[skill];
-            playerBonuses[skill] = player.total(skillPoint) - player.allocated(skillPoint);
+        PlayerAccess.clearBonuses(player);
+    }
+
+    private static final class PlayerAccess {
+        private static final VarHandle ALLOCATED;
+        private static final VarHandle BONUS;
+        private static final VarHandle WEIGHT;
+
+        static {
+            try {
+                MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(WynnPlayer.class, MethodHandles.lookup());
+                ALLOCATED = lookup.findVarHandle(WynnPlayer.class, "_allocated", int[].class);
+                BONUS = lookup.findVarHandle(WynnPlayer.class, "_bonus", int[].class);
+                WEIGHT = lookup.findVarHandle(WynnPlayer.class, "_weight", int.class);
+            } catch (ReflectiveOperationException exception) {
+                throw new ExceptionInInitializerError(exception);
+            }
         }
-        player.modify(playerBonuses, false);
+
+        private PlayerAccess() {
+        }
+
+        private static int[] allocated(WynnPlayer player) {
+            return (int[]) ALLOCATED.get(player);
+        }
+
+        private static void setBonuses(WynnPlayer player, int[] bonuses) {
+            int[] target = (int[]) BONUS.get(player);
+            target[0] = bonuses[0];
+            target[1] = bonuses[1];
+            target[2] = bonuses[2];
+            target[3] = bonuses[3];
+            target[4] = bonuses[4];
+            WEIGHT.set(player, bonuses[0] + bonuses[1] + bonuses[2] + bonuses[3] + bonuses[4]);
+        }
+
+        private static void clearBonuses(WynnPlayer player) {
+            int[] target = (int[]) BONUS.get(player);
+            target[0] = 0;
+            target[1] = 0;
+            target[2] = 0;
+            target[3] = 0;
+            target[4] = 0;
+            WEIGHT.set(player, 0);
+        }
     }
 }
