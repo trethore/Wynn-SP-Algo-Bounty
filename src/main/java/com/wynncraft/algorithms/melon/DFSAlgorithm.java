@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@SuppressWarnings("DuplicatedCode")
 @Information(name = "DFS Algorithm", version = 1, authors = "Melon")
 public final class DFSAlgorithm implements IAlgorithm<WynnPlayer> {
 

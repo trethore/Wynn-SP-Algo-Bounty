@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@SuppressWarnings("DuplicatedCode")
 public final class HungryPlayer implements IPlayer {
 
     private static final SkillPoint[] SKILL_POINTS = SkillPoint.values();

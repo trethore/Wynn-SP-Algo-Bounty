@@ -17,6 +17,7 @@ import java.util.List;
  * permutations: once a mask is reached, its skill state is determined by the
  * mask, so all duplicate orders are skipped.</p>
  */
+@SuppressWarnings("DuplicatedCode")
 @Information(name = "Starving Goblin", version = 2, authors = "Melon")
 public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer> {
 
