@@ -30,7 +30,6 @@ public class AlgorithmRegistry {
         register(new PrunedMaskV2Algorithm(), WynnPlayer.Builder::new);
 
         register(new DFSAlgorithm(), WynnPlayer.Builder::new);
-        register(new HungryGoblinAlgorithm(), HungryPlayer.Builder::new);
         register(new StarvingGoblinAlgorithm(),StarvingPlayer.Builder::new);
     }
 
