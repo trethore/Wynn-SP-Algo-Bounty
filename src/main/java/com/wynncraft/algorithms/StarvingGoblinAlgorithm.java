@@ -129,6 +129,8 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         }
 
         // Try the cheap path first (No DFS)
+        // The reason we don't want to use DFS as it does too much permutations for nothing ( which we could call it NAIVE DFS)
+        //
         if (tryEquipEverything(remainingMask, allMask)) {
             cacheResult(equipment, player);
             applyCachedResult(player);
@@ -236,7 +238,7 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
 
     private void loadItemStats(int index, int[] req, int[] bonus) {
         long bit = 1L << index;
-        negativeMask &= ~bit;
+        negativeMask &= ~bit; //simply removes an item from negative mask. so it's no longer a requirement breaking neg item
         int r0 = req[0];
         int r1 = req[1];
         int r2 = req[2];
@@ -258,12 +260,16 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
         bonus3[index] = b3;
         bonus4[index] = b4;
         weights[index] = b0 + b1 + b2 + b3 + b4;
-        hasRequirement[index] = r0 > 0 || r1 > 0 || r2 > 0 || r3 > 0 || r4 > 0;
-        hasNegativeBonus[index] = b0 < 0 || b1 < 0 || b2 < 0 || b3 < 0 || b4 < 0;
+        hasRequirement[index] = r0 > 0 || r1 > 0 || r2 > 0 || r3 > 0 || r4 > 0; // basic boolean algebra if one of the condition is met it should obviously return true
+        hasNegativeBonus[index] = b0 < 0 || b1 < 0 || b2 < 0 || b3 < 0 || b4 < 0; // same as the comment just above
         negativeMask |= hasNegativeBonus[index] ? bit : 0L;
         markRequirements(req, bit);
     }
 
+    // SO HERE WE WANNA AVOID O(n) validation after each negative item
+    // so instead of doing so, we directly jump to only potentially affected items
+    // which means -> item A require STR and item B STR + DEX
+    // then requiredBySkill[STR] -> contains the bits for A AND B, as for DEX only B by logic
     private void markRequirements(int[] req, long bit) {
         requiredBySkill[0] |= req[0] > 0 ? bit : 0L;
         requiredBySkill[1] |= req[1] > 0 ? bit : 0L;
@@ -709,7 +715,7 @@ public final class StarvingGoblinAlgorithm implements IAlgorithm<StarvingPlayer>
     }
 
     // We have this lazy view bcc it havoid using for example an ArrayList if the
-    // result is just read once.
+    // result is just read once. note by edgn: NEVER USE ARRAY LISTS IN OPTIMISATION PROBLEMS !!!!!!!
     private static final class MaskEquipmentList extends AbstractList<IEquipment> {
         private final IEquipment[] items;
         private final long mask;
