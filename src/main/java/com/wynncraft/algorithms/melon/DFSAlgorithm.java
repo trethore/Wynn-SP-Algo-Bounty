@@ -10,8 +10,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-@Information(name = "EDGN ALGO", version = 1, authors = "EDGN")
-public final class EDGNAlgorithm implements IAlgorithm<WynnPlayer> {
+@Information(name = "DFS Algorithm", version = 1, authors = "Melon")
+public final class DFSAlgorithm implements IAlgorithm<WynnPlayer> {
 
     private static final SkillPoint[] SP = SkillPoint.values();
 

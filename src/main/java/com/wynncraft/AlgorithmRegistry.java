@@ -22,14 +22,14 @@ public class AlgorithmRegistry {
     static {
         // Register here your algorithm here and your custom player if necessary!
         // Make sure your algorithm contains the @Information annotation
-        // New additions always goes on the bottom for reference
+        // New additions always goes on the bottom for
         register(new WynnFrumaAlgorithm(), WynnPlayer.Builder::new);
         register(new CapyTopoAlgorithm(), WynnPlayer.Builder::new);
         register(new NegativeOrderAlgorithm(), WynnPlayer.Builder::new);
         register(new PrunedMaskAlgorithm(), WynnPlayer.Builder::new);
         register(new PrunedMaskV2Algorithm(), WynnPlayer.Builder::new);
 
-        register(new EDGNAlgorithm(), WynnPlayer.Builder::new);
+        register(new DFSAlgorithm(), WynnPlayer.Builder::new);
         register(new HungryGoblinAlgorithm(), HungryPlayer.Builder::new);
         register(new StarvingGoblinAlgorithm(),StarvingPlayer.Builder::new);
     }
