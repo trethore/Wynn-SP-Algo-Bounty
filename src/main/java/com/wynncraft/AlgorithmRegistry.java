@@ -24,7 +24,7 @@ public class AlgorithmRegistry {
         register(new WynnFrumaAlgorithm(), WynnPlayer.Builder::new);
         register(new CapyTopoAlgorithm(), WynnPlayer.Builder::new);
         register(new EDGNAlgorithm(), WynnPlayer.Builder::new);
-        register(new HungryGoblinAlgorithm(), WynnPlayer.Builder::new);
+        register(new HungryGoblinAlgorithm(), com.wynncraft.algorithms.melon.HungryPlayer.Builder::new);
     }
 
     /**
