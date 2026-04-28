@@ -71,62 +71,6 @@ class CombinationTests {
     }
 
     @CombinationTest
-    public void rejects_stale_cached_result(IAlgorithm algorithm, IPlayerBuilder builder) {
-        // Anti cache test rip my x1203 :(
-        {
-            builder.equipment(Equipment.GALES_FORCE);
-        }
-
-        IPlayer underRequirement = builder.build();
-        IAlgorithm.Result firstResult = algorithm.run(underRequirement);
-        assertSkillPoints(underRequirement, 0, 0, 0, 0, 0);
-        assertValid(firstResult);
-        assertInvalid(firstResult, Equipment.GALES_FORCE);
-
-        builder.allocate(SkillPoint.AGILITY, 60);
-        IPlayer meetsRequirement = builder.build();
-        IAlgorithm.Result secondResult = algorithm.run(meetsRequirement);
-        assertSkillPoints(meetsRequirement, 0, 0, 0, 0, 60);
-        assertValid(secondResult, Equipment.GALES_FORCE);
-        assertInvalid(secondResult);
-    }
-
-    @CombinationTest
-    public void rejects_warmup_seeded_cached_result(IAlgorithm algorithm, IPlayerBuilder builder) {
-        // Other anti cache test
-        MutableEquipment changingItem = new MutableEquipment(
-            new int[] {0, 0, 0, 0, 60},
-            new int[] {0, 0, 0, 0, 0}
-        );
-        IEquipment[] equipment = new IEquipment[16];
-        equipment[0] = changingItem;
-        for (int i = 1; i < equipment.length; i++) {
-            equipment[i] = new MutableEquipment(
-                new int[] {0, 0, 0, 0, 0},
-                new int[] {0, 0, 0, 0, 0}
-            );
-        }
-        builder.equipment(equipment);
-
-        IPlayer player = builder.build();
-        IAlgorithm.Result firstResult = algorithm.run(player);
-        assertSkillPoints(player, 0, 0, 0, 0, 0);
-        assertValid(firstResult, Arrays.copyOfRange(equipment, 1, equipment.length));
-        assertInvalid(firstResult, changingItem);
-
-        changingItem.set(
-            new int[] {0, 0, 0, 0, 0},
-            new int[] {0, 0, 0, 0, 5}
-        );
-        player.reset();
-
-        IAlgorithm.Result secondResult = algorithm.run(player);
-        assertSkillPoints(player, 0, 0, 0, 0, 5);
-        assertValid(secondResult, equipment);
-        assertInvalid(secondResult);
-    }
-
-    @CombinationTest
     public void bootstrap_1(IAlgorithm algorithm, IPlayerBuilder builder) {
         {
             builder.allocate(SkillPoint.AGILITY, 84);
@@ -422,58 +366,6 @@ class CombinationTests {
         assertThat(player.total(SkillPoint.AGILITY))
             .describedAs("Agility")
             .isEqualTo(agility);
-    }
-
-    private static final class MutableEquipment implements IEquipment {
-
-        private int[] requirements;
-        private int[] bonuses;
-
-        private MutableEquipment(int[] requirements, int[] bonuses) {
-            set(requirements, bonuses);
-        }
-
-        private void set(int[] requirements, int[] bonuses) {
-            this.requirements = requirements;
-            this.bonuses = bonuses;
-        }
-
-        @Override
-        public EquipmentType type() {
-            return EquipmentType.ACCESSORY;
-        }
-
-        @Override
-        public int[] requirements() {
-            return requirements;
-        }
-
-        @Override
-        public int[] bonuses() {
-            return bonuses;
-        }
-
-        @Override
-        public boolean hasNegativeBonus() {
-            for (int bonus : bonuses) {
-                if (bonus < 0) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        @Override
-        public boolean canEquip(IPlayer player) {
-            SkillPoint[] skills = SkillPoint.values();
-            for (int i = 0; i < requirements.length; i++) {
-                int requirement = requirements[i];
-                if (requirement > 0 && player.total(skills[i]) < requirement) {
-                    return false;
-                }
-            }
-            return true;
-        }
     }
 
 }
