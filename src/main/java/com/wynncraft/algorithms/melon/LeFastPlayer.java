@@ -11,14 +11,14 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Voracious Goblin algorithm.
+ * LeFast player.
  *
  * @author Melon Team (riege and trethore)
- * @version 3
+ * @version 1
  */
 @SuppressWarnings("DuplicatedCode")
-@Information(name = "Voracious Player", version = 3, authors = "Melon")
-public final class VoraciousPlayer implements IPlayer {
+@Information(name = "LeFast Player", version = 1, authors = "Melon")
+public final class LeFastPlayer implements IPlayer {
 
     private static final SkillPoint[] SKILL_POINTS = SkillPoint.values();
     private static final int STR = 0;
@@ -32,7 +32,7 @@ public final class VoraciousPlayer implements IPlayer {
     final int[] bonus = new int[SKILL_POINTS.length];
     int weight;
 
-    private VoraciousPlayer(List<IEquipment> equipment, int[] allocated) {
+    private LeFastPlayer(List<IEquipment> equipment, int[] allocated) {
         this.equipment = equipment;
         this.allocated = allocated;
     }
@@ -84,26 +84,26 @@ public final class VoraciousPlayer implements IPlayer {
         weight = 0;
     }
 
-    public static final class Builder implements IPlayerBuilder<VoraciousPlayer> {
+    public static final class Builder implements IPlayerBuilder<LeFastPlayer> {
 
         private final List<IEquipment> equipment = new ArrayList<>(16);
         private final int[] allocated = new int[SKILL_POINTS.length];
 
         @Override
-        public IPlayerBuilder<VoraciousPlayer> equipment(IEquipment... items) {
+        public IPlayerBuilder<LeFastPlayer> equipment(IEquipment... items) {
             Collections.addAll(equipment, items);
             return this;
         }
 
         @Override
-        public IPlayerBuilder<VoraciousPlayer> allocate(SkillPoint point, int amount) {
+        public IPlayerBuilder<LeFastPlayer> allocate(SkillPoint point, int amount) {
             allocated[point.ordinal()] = amount;
             return this;
         }
 
         @Override
-        public VoraciousPlayer build() {
-            return new VoraciousPlayer(new ArrayList<>(equipment), allocated.clone());
+        public LeFastPlayer build() {
+            return new LeFastPlayer(equipment, allocated);
         }
     }
 }

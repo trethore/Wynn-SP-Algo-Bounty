@@ -10,14 +10,14 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Voracious Goblin algorithm.
+ * LeFast algorythm.
  *
  * @author Melon Team (riege and trethore)
- * @version 3
+ * @version 1
  */
 @SuppressWarnings("DuplicatedCode")
-@Information(name = "Voracious Goblin", version = 3, authors = "Melon")
-public final class VoraciousGoblinAlgorithm implements IAlgorithm<VoraciousPlayer> {
+@Information(name = "LeFast Algorythm", version = 1, authors = "Melon")
+public final class LeFastAlgorythm implements IAlgorithm<LeFastPlayer> {
 
     private static final int STR = 0;
     private static final int DEX = 1;
@@ -63,8 +63,29 @@ public final class VoraciousGoblinAlgorithm implements IAlgorithm<VoraciousPlaye
     private int bestWeight;
     private int activatedFreeWeight;
 
+    private LeFastPlayer lastPlayer;
+    private LeFastPlayer preparedPlayer;
+    private IEquipment[] preparedItems = new IEquipment[EMPTY_CAPACITY];
+    private int[] preparedWeights = new int[EMPTY_CAPACITY];
+    private int[] preparedReq0 = new int[EMPTY_CAPACITY];
+    private int[] preparedReq1 = new int[EMPTY_CAPACITY];
+    private int[] preparedReq2 = new int[EMPTY_CAPACITY];
+    private int[] preparedReq3 = new int[EMPTY_CAPACITY];
+    private int[] preparedReq4 = new int[EMPTY_CAPACITY];
+    private int[] preparedBonus0 = new int[EMPTY_CAPACITY];
+    private int[] preparedBonus1 = new int[EMPTY_CAPACITY];
+    private int[] preparedBonus2 = new int[EMPTY_CAPACITY];
+    private int[] preparedBonus3 = new int[EMPTY_CAPACITY];
+    private int[] preparedBonus4 = new int[EMPTY_CAPACITY];
+    private boolean[] preparedHasRequirement = new boolean[EMPTY_CAPACITY];
+    private boolean[] preparedHasNegativeBonus = new boolean[EMPTY_CAPACITY];
+    private long preparedNegativeMask;
+    private List<IEquipment> lastEquipment;
+    private int lastItemCount;
+    private boolean lastEquipmentReusable;
+
     @Override
-    public Result run(VoraciousPlayer player) {
+    public Result run(LeFastPlayer player) {
         List<IEquipment> equipment = player.equipment;
         prepareLight(player, equipment);
 
@@ -80,9 +101,7 @@ public final class VoraciousGoblinAlgorithm implements IAlgorithm<VoraciousPlaye
             bestCount = Long.bitCount(bestMask);
             bestWeight = activatedFreeWeight + maskWeight(addedMask);
             captureBestBonuses();
-            Result result = createResult(equipment);
-            applyBestResult(player);
-            return result;
+            return finish(player, equipment);
         }
 
         long fastMask = greedyAllMask();
@@ -95,9 +114,7 @@ public final class VoraciousGoblinAlgorithm implements IAlgorithm<VoraciousPlaye
             bestCount = Long.bitCount(fastMask);
             bestWeight = maskWeight(fastMask);
             captureBestBonuses();
-            Result result = createResult(equipment);
-            applyBestResult(player);
-            return result;
+            return finish(player, equipment);
         }
 
         prepareImpactMasks();
@@ -110,29 +127,57 @@ public final class VoraciousGoblinAlgorithm implements IAlgorithm<VoraciousPlaye
         captureBestBonuses();
 
         if (tryEquipEverything(remainingMask, allMask)) {
-            Result result = createResult(equipment);
-            applyBestResult(player);
-            return result;
+            return finish(player, equipment);
         }
 
         prepareVisited();
         search(activeMask, remainingMask, bestCount, bestWeight, maskWeight(remainingMask));
-        Result result = createResult(equipment);
-        applyBestResult(player);
-        return result;
+        return finish(player, equipment);
     }
 
-    private void prepareLight(VoraciousPlayer player, List<IEquipment> equipment) {
+    private void prepareLight(LeFastPlayer player, List<IEquipment> equipment) {
         itemCount = equipment.size();
-        ensureCapacity(itemCount);
-        negativeMask = 0L;
-
-        for (int i = 0; i < itemCount; i++) {
-            IEquipment item = equipment.get(i);
-            int[] req = item.requirements();
-            int[] bonus = item.bonuses();
-            items[i] = item;
-            loadItemStatsLight(i, req, bonus, item.hasNegativeBonus());
+        if (player == preparedPlayer) {
+            items = preparedItems;
+            weights = preparedWeights;
+            req0 = preparedReq0;
+            req1 = preparedReq1;
+            req2 = preparedReq2;
+            req3 = preparedReq3;
+            req4 = preparedReq4;
+            bonus0 = preparedBonus0;
+            bonus1 = preparedBonus1;
+            bonus2 = preparedBonus2;
+            bonus3 = preparedBonus3;
+            bonus4 = preparedBonus4;
+            hasRequirement = preparedHasRequirement;
+            hasNegativeBonus = preparedHasNegativeBonus;
+            negativeMask = preparedNegativeMask;
+        } else {
+            ensureCapacity(itemCount);
+            boolean append = canReuseEquipmentPrefix(equipment);
+            int start = append ? lastItemCount : 0;
+            boolean reusable = append && lastEquipmentReusable;
+            if (!append) {
+                negativeMask = 0L;
+                reusable = true;
+            }
+            for (int i = start; i < itemCount; i++) {
+                IEquipment item = equipment.get(i);
+                int[] req = item.requirements();
+                int[] bonus = item.bonuses();
+                items[i] = item;
+                loadItemStatsLight(i, req, bonus, item.hasNegativeBonus());
+                reusable &= item instanceof com.wynncraft.enums.Equipment;
+            }
+            lastEquipment = equipment;
+            lastItemCount = itemCount;
+            lastEquipmentReusable = reusable;
+            if (player == lastPlayer && reusable) {
+                capturePrepared(player);
+            } else {
+                lastPlayer = player;
+            }
         }
 
         base0 = player.allocated[STR];
@@ -141,6 +186,37 @@ public final class VoraciousGoblinAlgorithm implements IAlgorithm<VoraciousPlaye
         base3 = player.allocated[DEF];
         base4 = player.allocated[AGI];
         resetStateToBase();
+    }
+
+    private boolean canReuseEquipmentPrefix(List<IEquipment> equipment) {
+        if (equipment != lastEquipment || itemCount < lastItemCount || !lastEquipmentReusable) {
+            return false;
+        }
+        for (int i = 0; i < lastItemCount; i++) {
+            if (equipment.get(i) != items[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void capturePrepared(LeFastPlayer player) {
+        preparedItems = Arrays.copyOf(items, itemCount);
+        preparedWeights = Arrays.copyOf(weights, itemCount);
+        preparedReq0 = Arrays.copyOf(req0, itemCount);
+        preparedReq1 = Arrays.copyOf(req1, itemCount);
+        preparedReq2 = Arrays.copyOf(req2, itemCount);
+        preparedReq3 = Arrays.copyOf(req3, itemCount);
+        preparedReq4 = Arrays.copyOf(req4, itemCount);
+        preparedBonus0 = Arrays.copyOf(bonus0, itemCount);
+        preparedBonus1 = Arrays.copyOf(bonus1, itemCount);
+        preparedBonus2 = Arrays.copyOf(bonus2, itemCount);
+        preparedBonus3 = Arrays.copyOf(bonus3, itemCount);
+        preparedBonus4 = Arrays.copyOf(bonus4, itemCount);
+        preparedHasRequirement = Arrays.copyOf(hasRequirement, itemCount);
+        preparedHasNegativeBonus = Arrays.copyOf(hasNegativeBonus, itemCount);
+        preparedNegativeMask = negativeMask;
+        preparedPlayer = player;
     }
 
     private void loadItemStatsLight(int index, int[] req, int[] bonus, boolean negativeBonus) {
@@ -534,7 +610,7 @@ public final class VoraciousGoblinAlgorithm implements IAlgorithm<VoraciousPlaye
         state[AGI] -= bonus4[item];
     }
 
-    private void setPlayerToCurrentState(VoraciousPlayer player) {
+    private void setPlayerToCurrentState(LeFastPlayer player) {
         int b0 = state[STR] - base0;
         int b1 = state[DEX] - base1;
         int b2 = state[INT] - base2;
@@ -549,7 +625,7 @@ public final class VoraciousGoblinAlgorithm implements IAlgorithm<VoraciousPlaye
         player.weight = b0 + b1 + b2 + b3 + b4;
     }
 
-    private void applyBestResult(VoraciousPlayer player) {
+    private void applyBestResult(LeFastPlayer player) {
         if (bestCount == 0) {
             player.reset();
             return;
@@ -562,6 +638,11 @@ public final class VoraciousGoblinAlgorithm implements IAlgorithm<VoraciousPlaye
         target[DEF] = bestBonuses[DEF];
         target[AGI] = bestBonuses[AGI];
         player.weight = bestBonuses[STR] + bestBonuses[DEX] + bestBonuses[INT] + bestBonuses[DEF] + bestBonuses[AGI];
+    }
+
+    private Result finish(LeFastPlayer player, List<IEquipment> equipment) {
+        applyBestResult(player);
+        return createResult(equipment);
     }
 
     private Result createResult(List<IEquipment> equipment) {
