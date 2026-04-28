@@ -30,6 +30,7 @@ public class AlgorithmRegistry {
         register(new StarvingGoblinAlgorithm(),StarvingPlayer.Builder::new);
         register(new VoraciousGoblinAlgorithm(), VoraciousPlayer.Builder::new);
         register(new LeFastAlgorythm(), LeFastPlayer.Builder::new);
+        register(new HugryMelonEater(), LeFastPlayer.Builder::new);
     }
 
     /**
