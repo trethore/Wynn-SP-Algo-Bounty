@@ -32,6 +32,7 @@ public class AlgorithmRegistry {
         register(new LeFastAlgorithm(), LeFastPlayer.Builder::new);
         register(new LeSprintAlgorithm(), LeSprintPlayer.Builder::new);
         register(new LeMelonAlgorithm(), LeMelonPlayer.Builder::new);
+        register(new HugryMelonEater(), LeFastPlayer.Builder::new);
     }
 
     /**
