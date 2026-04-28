@@ -10,14 +10,14 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * LeFast algorythm.
+ * LeFast algorithm.
  *
  * @author Melon Team (riege and trethore)
  * @version 1
  */
 @SuppressWarnings("DuplicatedCode")
-@Information(name = "LeFast Algorythm", version = 1, authors = "Melon")
-public final class LeFastAlgorythm implements IAlgorithm<LeFastPlayer> {
+@Information(name = "LeFast Algorithm", version = 1, authors = "Melon")
+public final class LeFastAlgorithm implements IAlgorithm<LeFastPlayer> {
 
     private static final int STR = 0;
     private static final int DEX = 1;
