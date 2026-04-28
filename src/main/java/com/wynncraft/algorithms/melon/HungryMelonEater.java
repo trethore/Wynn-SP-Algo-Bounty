@@ -23,7 +23,7 @@ import java.util.List;
  */
 @SuppressWarnings("DuplicatedCode")
 @Information(name = "HungryMelonEater", version = 2, authors = "Melon")
-public final class HugryMelonEater implements IAlgorithm<LeFastPlayer> {
+public final class HungryMelonEater implements IAlgorithm<LeFastPlayer> {
 
     private static final int STR = 0;
     private static final int DEX = 1;
