@@ -25,11 +25,11 @@ public class AlgorithmRegistry {
         // register(new PrunedMaskAlgorithm(), WynnPlayer.Builder::new);
         // register(new PrunedMaskV2Algorithm(), WynnPlayer.Builder::new);
         // register(new DFSAlgorithm(), WynnPlayer.Builder::new);
+        // register(new LeFastAlgorithm(), LeFastPlayer.Builder::new);
+        // register(new StarvingGoblinAlgorithm(),StarvingPlayer.Builder::new);
+        // register(new VoraciousGoblinAlgorithm(), VoraciousPlayer.Builder::new);
 
         // Fast
-        register(new StarvingGoblinAlgorithm(),StarvingPlayer.Builder::new);
-        register(new VoraciousGoblinAlgorithm(), VoraciousPlayer.Builder::new);
-        register(new LeFastAlgorithm(), LeFastPlayer.Builder::new);
         register(new LeSprintAlgorithm(), LeSprintPlayer.Builder::new);
         register(new LeMelonAlgorithm(), LeMelonPlayer.Builder::new);
         register(new HungryMelonEater(), LeFastPlayer.Builder::new);
