@@ -10,20 +10,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * LeFast algorythm V2 — optimised hot-path:
- * - O(1) activateFreeItems via precomputed freeMask / freeBonuses
- * - 5-comparison itemInvalidWithoutOwnBonus via precomputed adjReq
- * - impactMasks computed before greedyAllMask so the greedy validity
- * check is narrowed to only impacted items (O(impact) vs O(active))
- * - impactMasks cached in the prepared state for fully-cached runs
- * - initial remainingWeight computed as totalWeight-freeWeight (O(1))
- *
+ * Curious Algorythm
  * @author Melon Team (riege and trethore)
  * @version 2
  */
 @SuppressWarnings("DuplicatedCode")
 @Information(name = "Curious Algorythm", version = 1, authors = "Melon")
-public final class CuriousAlgorythm implements IAlgorithm<CuriousPlayer> {
+public final class CuriousAlgorithm implements IAlgorithm<CuriousPlayer> {
 
     private static final int STR = 0;
     private static final int DEX = 1;
