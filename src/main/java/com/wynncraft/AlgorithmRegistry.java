@@ -43,24 +43,24 @@ public class AlgorithmRegistry {
         // register(new GreedyAlgorithm(), WynnPlayer.Builder::new);
         // register(new PrunedMaskAlgorithm(), WynnPlayer.Builder::new);
         // register(new PrunedMaskV2Algorithm(), WynnPlayer.Builder::new);
+        // register(new WynnSolverAlgorithm(), WynnPlayer.Builder::new);
+        // register(new CascadeBoundChecker(), WynnPlayer.Builder::new);
+        // register(new MyFirstAlgorithm(), WynnPlayer.Builder::new);
+        // register(new MySecondAlgorithm(), WynnPlayer.Builder::new);
+        // register(new TheThirdAlgorithm(), WynnPlayer.Builder::new);
+        // register(new OurSecondAlgorithm(), WynnPlayer.Builder::new);
+        // register(new TheFourthAlgorithm(), WynnPlayer.Builder::new);
+        // register(new TheCuteCatAlgo(), WynnPlayer.Builder::new);
+        // register(new CapyTopoAlgorithm(), WynnPlayer.Builder::new);
+        // register(new NegativeOrderAlgorithm(), WynnPlayer.Builder::new);
+        // register(new StarvingGoblinAlgorithm(),StarvingPlayer.Builder::new);
+        //register(new StarvingGoblinAlgorithm(), StarvingPlayer.Builder::new);
+        //register(new VoraciousGoblinAlgorithm(), VoraciousPlayer.Builder::new);
 
         // Fast
-        register(new StarvingGoblinAlgorithm(), StarvingPlayer.Builder::new);
-        register(new VoraciousGoblinAlgorithm(), VoraciousPlayer.Builder::new);
         register(new LeFastAlgorithm(), LeFastPlayer.Builder::new);
         register(new HungryMelonEater(), LeFastPlayer.Builder::new);
         register(new CuriousAlgorithm(), CuriousPlayer.Builder::new);
-        register(new WynnSolverAlgorithm(), WynnPlayer.Builder::new);
-        register(new CascadeBoundChecker(), WynnPlayer.Builder::new);
-        register(new MyFirstAlgorithm(), WynnPlayer.Builder::new);
-        register(new MySecondAlgorithm(), WynnPlayer.Builder::new);
-        register(new TheThirdAlgorithm(), WynnPlayer.Builder::new);
-        register(new OurSecondAlgorithm(), WynnPlayer.Builder::new);
-        register(new TheFourthAlgorithm(), WynnPlayer.Builder::new);
-        register(new TheCuteCatAlgo(), WynnPlayer.Builder::new);
-        register(new CapyTopoAlgorithm(), WynnPlayer.Builder::new);
-        register(new NegativeOrderAlgorithm(), WynnPlayer.Builder::new);
-        register(new StarvingGoblinAlgorithm(),StarvingPlayer.Builder::new);
     }
 
     /**
