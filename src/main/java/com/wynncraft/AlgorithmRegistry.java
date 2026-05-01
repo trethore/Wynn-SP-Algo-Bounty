@@ -1,7 +1,31 @@
 package com.wynncraft;
 
-
-import com.wynncraft.algorithms.melon.*;
+import com.wynncraft.algorithms.CapyTopoAlgorithm;
+import com.wynncraft.algorithms.CascadeBoundChecker;
+import com.wynncraft.algorithms.GreedyAlgorithm;
+import com.wynncraft.algorithms.MyFirstAlgorithm;
+import com.wynncraft.algorithms.MySecondAlgorithm;
+import com.wynncraft.algorithms.NegativeOrderAlgorithm;
+import com.wynncraft.algorithms.OurSecondAlgorithm;
+import com.wynncraft.algorithms.PrunedMaskAlgorithm;
+import com.wynncraft.algorithms.PrunedMaskV2Algorithm;
+import com.wynncraft.algorithms.SCCGraphAlgorithm;
+import com.wynncraft.algorithms.SubtractiveBnBAlgorithm;
+import com.wynncraft.algorithms.TheCuteCatAlgo;
+import com.wynncraft.algorithms.TheFourthAlgorithm;
+import com.wynncraft.algorithms.TheThirdAlgorithm;
+import com.wynncraft.algorithms.WynnFrumaAlgorithm;
+import com.wynncraft.algorithms.WynnSolverAlgorithm;
+import com.wynncraft.algorithms.melon.CuriousAlgorithm;
+import com.wynncraft.algorithms.melon.CuriousPlayer;
+import com.wynncraft.algorithms.melon.HungryMelonEater;
+import com.wynncraft.algorithms.melon.LeFastAlgorithm;
+import com.wynncraft.algorithms.melon.LeFastPlayer;
+import com.wynncraft.algorithms.melon.StarvingGoblinAlgorithm;
+import com.wynncraft.algorithms.melon.StarvingPlayer;
+import com.wynncraft.algorithms.melon.VoraciousGoblinAlgorithm;
+import com.wynncraft.algorithms.melon.VoraciousPlayer;
+import com.wynncraft.core.WynnPlayer;
 import com.wynncraft.core.interfaces.IAlgorithm;
 import com.wynncraft.core.interfaces.IPlayerBuilder;
 import com.wynncraft.core.interfaces.Information;
@@ -16,22 +40,33 @@ public class AlgorithmRegistry {
     static {
         // Register here your algorithm here and your custom player if necessary!
         // Make sure your algorithm contains the @Information annotation
-        // New additions always goes on the bottom for
+        // New additions always goes on the bottom for reference
 
         // Slow
+        // register(new SubtractiveBnBAlgorithm(), WynnPlayer.Builder::new);
         // register(new WynnFrumaAlgorithm(), WynnPlayer.Builder::new);
-        // register(new CapyTopoAlgorithm(), WynnPlayer.Builder::new);
-        // register(new NegativeOrderAlgorithm(), WynnPlayer.Builder::new);
+        // register(new SCCGraphAlgorithm(), WynnPlayer.Builder::new);
+        // register(new GreedyAlgorithm(), WynnPlayer.Builder::new);
         // register(new PrunedMaskAlgorithm(), WynnPlayer.Builder::new);
         // register(new PrunedMaskV2Algorithm(), WynnPlayer.Builder::new);
-        // register(new DFSAlgorithm(), WynnPlayer.Builder::new);
 
         // Fast
-        register(new StarvingGoblinAlgorithm(),StarvingPlayer.Builder::new);
+        register(new StarvingGoblinAlgorithm(), StarvingPlayer.Builder::new);
         register(new VoraciousGoblinAlgorithm(), VoraciousPlayer.Builder::new);
         register(new LeFastAlgorithm(), LeFastPlayer.Builder::new);
         register(new HungryMelonEater(), LeFastPlayer.Builder::new);
         register(new CuriousAlgorithm(), CuriousPlayer.Builder::new);
+        register(new WynnSolverAlgorithm(), WynnPlayer.Builder::new);
+        register(new CascadeBoundChecker(), WynnPlayer.Builder::new);
+        register(new MyFirstAlgorithm(), WynnPlayer.Builder::new);
+        register(new MySecondAlgorithm(), WynnPlayer.Builder::new);
+        register(new TheThirdAlgorithm(), WynnPlayer.Builder::new);
+        register(new OurSecondAlgorithm(), WynnPlayer.Builder::new);
+        register(new TheFourthAlgorithm(), WynnPlayer.Builder::new);
+        register(new TheCuteCatAlgo(), WynnPlayer.Builder::new);
+        register(new CapyTopoAlgorithm(), WynnPlayer.Builder::new);
+        register(new NegativeOrderAlgorithm(), WynnPlayer.Builder::new);
+        register(new com.wynncraft.algorithms.StarvingGoblinAlgorithm(), com.wynncraft.algorithms.StarvingPlayer.Builder::new);
     }
 
     /**
